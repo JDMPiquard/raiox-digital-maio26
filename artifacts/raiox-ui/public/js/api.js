@@ -74,9 +74,9 @@ export async function getResult(sid) {
   return await res.json();
 }
 
-// Brief locks one (and only one) emoji in the WhatsApp message.
+// Locked share text from the brief's translation table — used verbatim.
 const SHARE_TEXT_TEMPLATE = (url) =>
-  `🔍 Acabei de fazer um raio-x digital da minha loja em 90 seg. Toma o teu: ${url} — AHI`;
+  `Acabei de fazer um raio-x digital da minha loja em 90 seg. Toma o teu: ${url} — AHI`;
 
 export function shareWhatsappUrl(shareUrl) {
   return `https://wa.me/?text=${encodeURIComponent(SHARE_TEXT_TEMPLATE(shareUrl))}`;

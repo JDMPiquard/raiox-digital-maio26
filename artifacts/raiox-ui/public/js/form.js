@@ -113,7 +113,7 @@ const queryRemote = debounce(async (q) => {
     predictions = p ?? [];
     renderPredictions(predictions);
   } catch {
-    showError("Sem rede agora — toca para tentar.", () => queryRemote(q));
+    showError("Sem rede agora — toca aqui para tentar de novo.", () => queryRemote(q));
   }
 }, 250);
 
@@ -164,7 +164,7 @@ function showConfirm(p) {
       </div>
     </div>
     <p class="confirm-q">É esta a tua loja?</p>
-    <button type="button" class="back-link" id="back-search">← Procurar outra</button>
+    <button type="button" class="back-link" id="back-search">Procurar outra</button>
   `;
   // Insert above the submit button
   submit.parentNode.insertBefore(card, submit);
