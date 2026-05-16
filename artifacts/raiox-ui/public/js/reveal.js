@@ -109,10 +109,11 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
       <p class="scene-mark">AHI</p>`,
   });
 
-  // Scene 2 — Discovery: max of distinct sources found and summed evidence_count.
+  // Scene 2 — Discovery. Brief: "count distinct source_found values from progress
+  // events". Distinct-source count is the narrative number ("6 sítios"); evidence
+  // sums (e.g. 87 reviews) belong on the axis scenes, not here.
   const sources = collectSources(result, distinctSources);
-  const evidenceSum = result.axes.reduce((n, a) => n + (a.evidence_count ?? 0), 0);
-  const discoveryCount = Math.max(sources.length, evidenceSum);
+  const discoveryCount = sources.length;
   scenes.push({
     ariaLabel: "Cena 2: Onde te encontrei",
     dwellMs: 6000,
