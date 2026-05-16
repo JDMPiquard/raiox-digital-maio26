@@ -227,7 +227,7 @@ form.addEventListener("submit", async (e) => {
   submit.disabled = true;
   submit.setAttribute("aria-busy", "true");
   const prevLabel = submit.textContent;
-  submit.textContent = "A começar…";
+  submit.textContent = "Sim, começar";
 
   try {
     const { sid } = await startDiagnostic(body);

@@ -140,21 +140,34 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
     });
   });
 
-  // Scene 6 — Esta semana (shown in both modes)
-  const top3 = result.axes
-    .map((a) => a.recommendations?.[0]?.action)
-    .filter(Boolean)
-    .slice(0, 3);
-  scenes.push({
-    ariaLabel: "Cena: O que fazer esta semana",
-    dwellMs: 7000,
-    html: `
-      <h2 class="week-title">O que fazer esta semana</h2>
-      <ol class="week-list">
-        ${top3.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}
-      </ol>
-      <p class="week-foot">Cada um leva menos de 30 minutos.</p>`,
-  });
+  // Scene 6 — Esta semana.
+  // Merchant view: full numbered action list ("the payoff" per brief).
+  // Share-landing (recipient): just a teaser line — recipient isn't the merchant
+  // so the merchant-only action items would be noise.
+  if (!shareLanding) {
+    const top3 = result.axes
+      .map((a) => a.recommendations?.[0]?.action)
+      .filter(Boolean)
+      .slice(0, 3);
+    scenes.push({
+      ariaLabel: "Cena: O que fazer esta semana",
+      dwellMs: 7000,
+      html: `
+        <h2 class="week-title">O que fazer esta semana</h2>
+        <ol class="week-list">
+          ${top3.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}
+        </ol>
+        <p class="week-foot">Cada um leva menos de 30 minutos.</p>`,
+    });
+  } else {
+    scenes.push({
+      ariaLabel: "Cena: Esta semana",
+      dwellMs: 5000,
+      html: `
+        <h2 class="week-title">Esta semana</h2>
+        <p class="week-foot">3 ações pequenas para a loja crescer online.</p>`,
+    });
+  }
 
   // Scene 7 — replaced by "Faz o teu raio-x" CTA on /r/:sid (share-landing).
   if (shareLanding) {
@@ -165,7 +178,7 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
         <p class="scene-prefix">Em 90 segundos</p>
         <h2 class="lab-title">Faz o teu raio-x</h2>
         <p class="lab-where">Anónimo. Lê só fontes públicas.</p>
-        <a class="btn btn-primary" href="/">Começar o meu</a>`,
+        <a class="btn btn-primary" href="/">Faz o teu raio-x</a>`,
     });
   } else if (result.lab_hint && LAB_TITLES[result.lab_hint]) {
     const labNum = result.lab_hint.replace("lab_", "");
@@ -185,7 +198,8 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
         const confirm = el.querySelector("#lab-confirm");
         a.addEventListener("click", () => {
           // Browser handles the .ics download / Google Calendar redirect.
-          confirm.textContent = "Marcado no teu calendário.";
+          // No extra confirmation copy: brief locks no string for this.
+          confirm.textContent = "";
         });
       },
     });

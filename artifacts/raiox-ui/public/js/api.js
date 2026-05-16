@@ -61,7 +61,9 @@ export async function startDiagnostic(body) {
 export async function getStatus(sid) {
   if (mockMode()) return mockStatus(sid);
   const res = await jsonFetch(`/api/status?sid=${encodeURIComponent(sid)}`);
-  if (res.status === 501 || res.status === 404) return mockStatus(sid);
+  // Brief: only 501 (endpoint not yet implemented) falls back to mock.
+  // 404 means a real expired/unknown sid and must surface as an error.
+  if (res.status === 501) return mockStatus(sid);
   if (!res.ok) throw new Error(`status ${res.status}`);
   return await res.json();
 }
@@ -69,7 +71,7 @@ export async function getStatus(sid) {
 export async function getResult(sid) {
   if (mockMode()) return mockResult();
   const res = await jsonFetch(`/api/result/${encodeURIComponent(sid)}`);
-  if (res.status === 501 || res.status === 404) return mockResult();
+  if (res.status === 501) return mockResult();
   if (!res.ok) throw new Error(`result ${res.status}`);
   return await res.json();
 }
