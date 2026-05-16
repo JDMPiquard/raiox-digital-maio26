@@ -98,10 +98,10 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
   const scenes = [];
   const shopName = result.shop?.name ?? "a tua loja";
 
-  // Scene 1 — Hero (brief: 5s for short scenes / 8s for axis scenes)
+  // Scene 1 — Hero (brief locks dwell at 4s)
   scenes.push({
     ariaLabel: "Cena 1: O teu raio-x digital",
-    dwellMs: 5000,
+    dwellMs: 4000,
     html: `
       <p class="scene-prefix">O Raio-X Digital de</p>
       <h1 class="scene-shop-name">${escapeHtml(shopName)}</h1>
@@ -109,11 +109,11 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
       <p class="scene-mark">AHI</p>`,
   });
 
-  // Scene 2 — Discovery. Brief: "count distinct source_found values from progress
-  // events". Distinct-source count is the narrative number ("6 sítios"); evidence
-  // sums (e.g. 87 reviews) belong on the axis scenes, not here.
+  // Scene 2 — Discovery. Brief: max of summed axis evidence_count and
+  // distinct source_found values from progress events.
   const sources = collectSources(result, distinctSources);
-  const discoveryCount = sources.length;
+  const evidenceSum = result.axes.reduce((n, a) => n + (a.evidence_count ?? 0), 0);
+  const discoveryCount = Math.max(sources.length, evidenceSum);
   scenes.push({
     ariaLabel: "Cena 2: Onde te encontrei",
     dwellMs: 6000,
