@@ -98,10 +98,10 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
   const scenes = [];
   const shopName = result.shop?.name ?? "a tua loja";
 
-  // Scene 1 — Hero
+  // Scene 1 — Hero (brief: 5s for short scenes / 8s for axis scenes)
   scenes.push({
     ariaLabel: "Cena 1: O teu raio-x digital",
-    dwellMs: 4000,
+    dwellMs: 5000,
     html: `
       <p class="scene-prefix">O Raio-X Digital de</p>
       <h1 class="scene-shop-name">${escapeHtml(shopName)}</h1>
@@ -165,7 +165,7 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
         <p class="scene-prefix">Em 90 segundos</p>
         <h2 class="lab-title">Faz o teu raio-x</h2>
         <p class="lab-where">Anónimo. Lê só fontes públicas.</p>
-        <a class="btn btn-primary" href="https://raiox.j24d.com/">Começar o meu</a>`,
+        <a class="btn btn-primary" href="/">Começar o meu</a>`,
     });
   } else if (result.lab_hint && LAB_TITLES[result.lab_hint]) {
     const labNum = result.lab_hint.replace("lab_", "");

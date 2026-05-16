@@ -101,9 +101,16 @@ export function icsUrl(sid, lab) {
   return `${API_BASE}/api/ics?sid=${encodeURIComponent(sid)}&lab=${encodeURIComponent(labNum)}`;
 }
 
+// Brief locks the production share host as raiox.j24d.com. In dev/preview we use
+// window.location.origin so the link a developer copies actually resolves.
+const PROD_SHARE_ORIGIN = "https://raiox.j24d.com";
 export function publicShareUrl(sid) {
-  // Public link the merchant pastes anywhere. Production hostname per brief.
-  return `https://raiox.j24d.com/r/${encodeURIComponent(sid)}`;
+  let origin = PROD_SHARE_ORIGIN;
+  try {
+    const here = window.location.origin;
+    if (here && !/raiox\.j24d\.com$/.test(new URL(here).hostname)) origin = here;
+  } catch { /* keep prod origin */ }
+  return `${origin}/r/${encodeURIComponent(sid)}`;
 }
 
 function newSid() {

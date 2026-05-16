@@ -22,9 +22,14 @@ build = [ "pnpm", "--filter", "@workspace/raiox-ui", "run", "build" ]
 publicDir = "artifacts/raiox-ui/dist/public"
 serve = "static"
 
+# Per brief: /r/:sid is server-rendered by the API team and injects window.__INITIAL_DATA__
+# into result.html. Until that endpoint ships, route the share path to result.html so the
+# client-side hydration in result.js (which detects the /r/ prefix from window.location)
+# can take over. All real files (/, /result.html, /privacidade.html, /css/*, /js/*) are
+# served first, so no SPA fallback is needed for the merchant flow.
 [[services.production.rewrites]]
-from = "/*"
-to = "/index.html"
+from = "/r/*"
+to = "/result.html"
 
 [services.env]
 PORT = "19272"
