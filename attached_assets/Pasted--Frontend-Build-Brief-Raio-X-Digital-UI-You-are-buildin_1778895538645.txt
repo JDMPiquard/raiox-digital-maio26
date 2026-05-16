@@ -1,0 +1,1001 @@
+# Frontend Build Brief — Raio-X Digital UI
+
+You are building the frontend for "Raio-X Digital" — a phone-scanned web app for the Fórum do Comércio do Porto (19 May 2026). The API and agent are already built and live; you are building the UI in a separate folder against a documented API contract.
+
+This brief is self-contained. Read it end to end before writing any code. When something is ambiguous, follow the explicit rules below over your defaults — there are reasons for the choices that may not be obvious from your training.
+
+---
+
+## What you're building, in one paragraph
+
+A merchant scans a QR code at AHI's coffee-break booth. They land on a single mobile web page. They search for their shop in an autocomplete (powered by Google Places) and tap to confirm. The page transitions into a "discovery" experience that streams live progress as an Anthropic agent runs a 60-180 second diagnostic of the shop's online presence — pulling from Google, Instagram, the shop's site, and the broader web. When the diagnostic is ready, it reveals as a sequence of 8 Spotify-Wrapped-style scenes the user taps through, ending in a shareable link they can send to friends/peers. The whole experience is in European Portuguese.
+
+---
+
+## Hard constraints (non-negotiable)
+
+1. **PT-PT (European Portuguese) for ALL user-facing copy.** Singular "tu", peer-to-peer. No formal "você" anywhere.
+2. **Mobile-first.** Designed for ~5-inch phone screens held at arm's length by people aged 40-60. Tested on iPhone SE 1st gen + mid-2010s Android.
+3. **Tone discipline.** The 10 rules below are load-bearing — JD personally signs off on tone. Re-read the rules every time you write user-facing copy.
+4. **Design tokens are fixed.** Use the warm-cream + muted-neutral palette below. NEVER traffic-light colors (no green/yellow/red signaling for the 3 axes).
+5. **Accessibility ≥ WCAG AA.** 18px body text, 48×48 touch targets, visible focus rings, `aria-live` on dynamic content, `prefers-reduced-motion` honored.
+6. **No emojis** in the diagnostic content. OK in the WhatsApp share message (one only).
+7. **No AI slop.** Avoid: purple/blue gradient hero backgrounds, generic "card stack" layouts, "Powered by AI ✨" badges, Inter/Roboto on a hero, `lorem ipsum`, cookie-cutter dashboard chrome. This product has a specific aesthetic — warm, calm, editorial. See "Look and feel" below.
+8. **Patchy 4G assumed.** Page weight budget: ≤ 50KB on every screen, ≤ 30KB JS gzipped.
+
+---
+
+## Repo setup
+
+You're working in `ui/` at the repo root. The sibling `api/` folder is **already built** — do not modify it. Your code stays in `ui/`.
+
+```
+ui/
+├── package.json              ← your bundler/dev server choice
+├── wrangler.toml             ← if using Cloudflare Pages
+├── README.md
+├── public/                   ← (or src/, your choice)
+│   ├── index.html            ← scan landing — autocomplete + form
+│   ├── result.html           ← polling → reveal → share (single page)
+│   ├── privacidade.html      ← short GDPR page
+│   ├── css/
+│   │   ├── tokens.css        ← design tokens (provided below — paste verbatim)
+│   │   └── app.css           ← layout + component styles
+│   ├── js/
+│   │   ├── api.js            ← typed API client (against the contract below)
+│   │   ├── form.js           ← autocomplete + submit
+│   │   ├── poll.js           ← polling loop, progress streaming
+│   │   ├── reveal.js         ← Spotify-Wrapped scene engine
+│   │   └── share.js          ← WhatsApp share + copy link
+│   └── qr.svg                ← (placeholder; api/scripts/qr.ts will generate this later)
+└── _headers                  ← Cloudflare Pages headers (CSP, cache)
+```
+
+### Tech choice (recommended)
+
+**Vanilla HTML/CSS/JS, no framework.** Reasons:
+- Page weight budget (≤ 30KB JS gz) makes React/Vue too heavy
+- The state machine is small (4-5 distinct views, 8 reveal scenes)
+- Older audience + 4G means every KB matters
+- AHI's brand aesthetic doesn't need component-library polish
+
+**Acceptable alternatives** if the agent strongly prefers:
+- **Preact + htm via CDN** (no build step, ~4KB gz) — fine
+- **Alpine.js** (~7KB gz) — fine for the form + polling state
+- **Svelte** with compile-to-vanilla output — fine but adds build complexity
+
+**Not acceptable**: React, Vue, Next.js, any framework that ships >20KB of runtime to the browser. Same for animation libraries (Framer Motion, GSAP, Lottie). Use CSS transitions + a sprinkle of `requestAnimationFrame` for number count-ups.
+
+### Build + deploy
+
+- Use any tooling you like (Vite, esbuild, plain `tsc`, none) — output should be static HTML/CSS/JS that Cloudflare Pages can serve
+- Dev server on `:5173` or `:8788` (any unused port)
+- Production deploy: `bunx wrangler pages deploy public --project-name raiox-ui`
+
+---
+
+## The complete UX flow
+
+5 phases. The user moves linearly through them, with one tap-back option in the form phase.
+
+### Phase 1 — SCAN (landing)
+
+Single screen, single form. The merchant arrives via QR.
+
+```
+┌───────────────────────────────┐
+│   AHI ▴ Fórum do Comércio     │  ← small wordmarks, top-left
+│                               │
+│                               │
+│   Vê o teu raio-x digital     │  ← H1, 26px, serif
+│   em 90 segundos              │  ← H2, 20px, regular
+│                               │
+│   ┌─────────────────────────┐ │
+│   │ A tua loja              │ │  ← label
+│   │ [Casa Janu____________] │ │  ← input, 18px
+│   │ • Casa Januário, Cedof. │ │  ← autocomplete dropdown
+│   │ • Casa Januária, Bonfim │ │
+│   │ • Casa de Chá Januário  │ │
+│   └─────────────────────────┘ │
+│                               │
+│   [   Começar   ]              │  ← primary button (disabled until pick)
+│                               │
+│   Lemos só fontes públicas   │  ← GDPR microcopy, 14px muted
+│   (Google, Instagram, web).  │
+│   Não guardamos dados        │
+│   pessoais.                   │
+└───────────────────────────────┘
+```
+
+**Behavior:**
+- Input: as user types ≥2 chars, debounce ~250ms, hit `GET /api/autocomplete?q=...`
+- Render up to 8 predictions in a dropdown beneath the input
+- Each prediction: `name` (bold, 18px) + `address` (muted, 16px) on two lines
+- Tap a prediction → fills input with `name`, captures `place_id` in component state, dropdown closes
+- "Começar" button: disabled until a prediction is selected
+- On submit → `POST /api/diagnostic` with `{ place_id, shop_name, parish? }`, transition to Phase 2
+
+**Edge cases:**
+- ≤2 chars: hide dropdown, no API call
+- 0 results: "Não encontrámos a tua loja. [Tenta com mais detalhe →]" with a fallback "Não estás no Google Maps?" link that allows manual `shop_name` + `parish` entry (POST `/api/diagnostic` without `place_id`)
+- API error: warm message "Sem rede agora — toca aqui para tentar de novo." Retain typed input.
+
+**Keyboard:**
+- Arrow keys navigate predictions
+- Enter selects highlighted prediction
+- Escape closes dropdown
+
+**Accessibility:**
+- Form input has `aria-autocomplete="list"`, `aria-controls` pointing to the dropdown
+- Dropdown is `role="listbox"`, items are `role="option"` with `aria-selected`
+- Submit button has `aria-disabled="true"` when no selection
+
+### Phase 2 — CONFIRM (selected shop card)
+
+Brief intermediate state — could be folded into Phase 1 if you prefer (a single submit button below the autocomplete is acceptable). The point: confirm the selection before the user commits to a 90s wait.
+
+```
+┌───────────────────────────────┐
+│ ← voltar                      │  ← back to Phase 1
+│                               │
+│  ┌─────────────────────────┐  │
+│  │  [thumbnail]             │  │
+│  │  Casa Januário           │  │  ← bold
+│  │  Rua Cedofeita, Cedofeita│  │  ← muted
+│  └─────────────────────────┘  │
+│                               │
+│  É esta a tua loja?           │
+│                               │
+│  [    Sim, começar    ]       │  ← primary
+│  [   Procurar outra   ]       │  ← secondary, returns to Phase 1
+│                               │
+└───────────────────────────────┘
+```
+
+**On "Sim, começar":** transition to Phase 3 (waiting). The actual `POST /api/diagnostic` happens here.
+
+### Phase 3 — WAITING (live discovery)
+
+This is where 60-180 seconds disappear. Make it feel like part of the show.
+
+```
+┌───────────────────────────────┐
+│  Casa Januário                │  ← small, top, pinned
+│                               │
+│  ━━━━━━━━━━━░░░░░░░░░  ~50%  │  ← progress bar (estimated)
+│                               │
+│                               │
+│  ┌──────────────┐             │
+│  │   87         │             │  ← BIG number, 64px, animated count-up
+│  │              │             │
+│  │   reviews    │             │
+│  │   no Google  │             │
+│  └──────────────┘             │
+│                               │
+│  ┌──────────────┐             │
+│  │   1,522      │             │  ← second card, just appeared
+│  │              │             │
+│  │   seguidores │             │
+│  │   Instagram  │             │
+│  └──────────────┘             │
+│                               │
+│  A ler o Instagram público…   │  ← latest progress text, muted
+│                               │
+└───────────────────────────────┘
+```
+
+**Behavior:**
+- Poll `GET /api/status?sid=...` every 800ms for first 30s, then every 1500ms
+- Render the latest progress text always at the bottom (1 line)
+- For each progress event with `data` (structured payload), animate a **fact card** appearing:
+  - Big number (the most prominent value in `data` — e.g., `reviews_count`, `instagram_followers`, `last_post_days_ago`)
+  - Small label (PT-PT — derived from the data key, see mapping below)
+  - Slide up + fade in (250ms)
+  - Stack of 3-5 cards visible at a time; older ones fade out as new arrive
+- Progress bar: estimate based on `stage` (identifying=10%, scanning_google=30%, scanning_instagram=50%, scanning_site=65%, scanning_web=80%, synthesizing=95%, done=100%)
+- When `state` becomes `done`: smooth crossfade into Phase 4 (REVEAL)
+
+**Data → label mapping (PT-PT):**
+
+| `data` key | Big number format | Label |
+|---|---|---|
+| `reviews_count` | `87` | `reviews no Google` |
+| `rating` | `4.3 ★` | `estrelas no Google` (combine with reviews_count if both present) |
+| `instagram_followers` | `1 522` | `seguidores no Instagram` |
+| `instagram_posts` | `449` | `publicações no Instagram` |
+| `facebook_followers` | `8 849` | `seguidores no Facebook` |
+| `last_post_days_ago` | `46` | `dias desde a última publicação` |
+| `source_found` (string) | (the source name as text) | `mais um sítio onde apareces` |
+| `site_url` (string) | (domain only) | `o teu site` |
+| `hours_today` | (the hours string) | `horário hoje` |
+
+Use `Intl.NumberFormat('pt-PT')` for thousands separators (1 522, not 1,522 or 1522).
+
+**Edge cases:**
+- Network drop mid-poll: backoff (1s, 2s, 4s, 8s, max 15s); show muted "Sem rede — vou tentar de novo" beneath the latest fact card; auto-resume on reconnect (sid persists in URL query)
+- `state === "error"`: show error state, see Errors section
+- 3 minutes total elapsed with no terminal state: show "Demorou mais do que esperava — segue por aqui dentro de uns minutos." with a `[Ver agora]` button that re-polls
+- Browser refresh mid-flight: read `sid` from URL, resume polling from latest state in KV
+
+**Accessibility:**
+- Progress region wrapped in `aria-live="polite"`
+- Fact cards announced as they appear (use `aria-label` on each card)
+- `prefers-reduced-motion`: skip slide-up + count-up animations, just render cards instantly
+
+### Phase 4 — REVEAL (Spotify-Wrapped scenes)
+
+This is the payoff. 8 sequential scenes the user taps through. Each scene fills the viewport. Scenes auto-advance after a dwell time but tap-to-skip is always available.
+
+**Common scene chrome:**
+
+```
+┌───────────────────────────────┐
+│ ●●●○○○○○                       │  ← progress dots (current scene N of 8)
+│                               │
+│                               │
+│         (scene content)        │
+│                               │
+│                               │
+│                               │
+│                               │
+│                               │
+│                  [skip →]     │  ← tap to advance manually
+└───────────────────────────────┘
+```
+
+- Tap **anywhere** on screen to advance (the whole viewport is a tap target except for in-scene buttons)
+- Auto-advance: 5s for short scenes, 8s for axis scenes (gives reading time)
+- Smooth crossfade between scenes (300ms)
+- `prefers-reduced-motion`: instant transition, no fades
+
+**Scene 1 — Hero**
+
+Dwell: 4s.
+
+```
+        O Raio-X Digital
+            de
+         Casa Januário              ← shop name, BIG, serif, 36px
+        ─────────────                ← thin accent line
+              AHI                    ← small wordmark
+```
+
+**Scene 2 — Discovery**
+
+Dwell: 6s.
+
+```
+         Encontrei-te em
+              6                      ← BIG number, 80px, count up from 0 over 1.2s
+            sítios
+
+       Google · Instagram · Facebook   ← logos/text scroll across, each appears
+       Site · TripAdvisor · Time Out   ← in sequence (300ms stagger)
+```
+
+`6` here is `result.axes.reduce((n, a) => n + (a.evidence_count ?? 0), 0)` or simpler: count distinct `source_found` values from progress events. Use the higher of the two if both available.
+
+**Scenes 3, 4, 5 — Visibilidade, Reputação, Consistência**
+
+Dwell: 8s each. Same template, different content.
+
+```
+        Visibilidade                 ← axis name, 28px, serif, with thin accent stripe
+        ────────                       above (using axis-specific accent color from tokens)
+        
+        87 reviews                    ← evidence_count or extracted big number, 48px
+        no Google
+        
+        [summary text wraps over    
+         2-3 lines, 18-20px           ← the strengths-first one-liner
+         from result.axes[i].summary] 
+        
+        Esta semana podes:
+        → [recommendations[0].action]  ← first rec, verb-led, 16px
+        → [recommendations[1].action]  ← second rec if present
+```
+
+The big number / stat at the top should be extracted from the axis content. Heuristics:
+- Visibilidade: `result.axes[0].evidence_count` if present, or pull a number from progress data (`reviews_count` etc.)
+- Reputação: `evidence_count` (likely review count) or `rating`
+- Consistência: there often isn't a single number — fall back to a short tagline pulled from the summary's first 4-5 words, OR show a checkmark-style "✓ ✓ ✗" tri-state (matches/mismatches across channels)
+
+If the axis has `partial: true`, append a small footnote line beneath the recommendations: "*Não consegui ler {partial_reason}.*" in muted color.
+
+**Scene 6 — Esta Semana**
+
+Dwell: 7s.
+
+Distill the 6 recommendations across 3 axes into the top 3 actions. Heuristic: take `recommendations[0].action` from each axis (the first rec is usually the more important one per the system prompt). Render as a numbered list:
+
+```
+        O que fazer esta semana
+
+        1.  [first rec from Visibilidade]
+        2.  [first rec from Reputação]
+        3.  [first rec from Consistência]
+        
+        Cada um leva menos de 30 minutos.
+```
+
+**Scene 7 — Lab CTA** (conditional on `result.lab_hint !== null`)
+
+Dwell: 7s.
+
+```
+        Amanhã às 14:00
+
+        Lab {N}                        ← e.g. "Lab 2"
+        {Lab title in PT-PT}           ← see lab map below
+        
+        Salão Nobre da Alfândega
+        
+        [ Lembra-me ]                  ← primary button
+            ↓
+        (taps → calls /api/ics?sid=...&lab=N → calendar event)
+```
+
+**Lab map:**
+- `lab_1` → "FAQ automática da loja"
+- `lab_2` → "Planeador de campanhas"
+- `lab_3` → "Montra em QR Code"
+
+If `lab_hint === null`, skip this scene entirely. Progress dots adjust accordingly (7 dots instead of 8).
+
+**Scene 8 — Share**
+
+Dwell: indefinite (final scene). No auto-advance.
+
+```
+        Partilha o teu raio-x
+
+        [ WhatsApp ]                   ← primary button
+        [ Copiar link ]                ← secondary
+
+        ─────
+
+        Já ajudámos 200+ comerciantes  ← AHI footer, muted, small
+        do Porto este ano. — AHI
+```
+
+**WhatsApp button:**
+- Calls `GET /api/share?sid=...` to get the pre-filled URL
+- Or constructs locally: `https://wa.me/?text={encodeURIComponent("Acabei de fazer um raio-x digital da minha loja em 90 seg. Toma o teu: " + shareUrl)}`
+- The `shareUrl` is the public link: `https://raiox.j24d.com/r/{sid}`
+
+**Copiar link button:**
+- Uses `navigator.clipboard.writeText(shareUrl)`
+- Briefly changes label to "Copiado ✓" for 2s
+
+**A persistent "Recomeçar" link** at the bottom of every reveal scene (small, muted): "Esta análise não bate certo? [Recomeça aqui]". Returns to Phase 1.
+
+### Phase 5 — SHARE LANDING (`/r/:sid` direct visit)
+
+When someone receives a share link and opens it, they land on the same Phase 4 reveal — but **starting from Scene 1** (the Hero), not from a wait. The data is already there.
+
+This is served by the API as server-rendered HTML at `/r/:sid` with the diagnostic JSON inlined. Your job: render the same scene engine against the inlined data.
+
+**To support this, your reveal engine should accept a `DiagnosticResult` from any source:**
+1. Live: passed in from the polling loop
+2. Shared: read from `window.__INITIAL_DATA__` (server-injected)
+
+Detect at page load:
+```js
+const result = window.__INITIAL_DATA__ ?? await fetch(`/api/result/${sid}`).then(r => r.json());
+```
+
+The shared view should NOT show the Lab CTA or "Esta semana" actions in their full form — instead, replace Scene 7 with a "Faz o teu raio-x" CTA back to `raiox.j24d.com`. Reason: the share recipient isn't the merchant; we want them to run their own scan.
+
+---
+
+## API contract (full)
+
+**Live deployed API base URL: `https://raiox-api.jd-ad0.workers.dev`**
+
+This is a Cloudflare Worker, accessible from any origin matching: `localhost` (any port), `*.replit.dev`, `*.replit.app`, `*.pages.dev`, `j24d.com` and subdomains. CORS is wired correctly — `fetch()` from your dev environment just works.
+
+You can curl-test it right now:
+
+```bash
+curl 'https://raiox-api.jd-ad0.workers.dev/healthz'
+curl 'https://raiox-api.jd-ad0.workers.dev/api/autocomplete?q=casa+januario&parish=Cedofeita'
+```
+
+The eventual production hostname `https://raiox.j24d.com` will redirect / be aliased to this Worker before event day. Build against the `workers.dev` URL for now.
+
+### Types
+
+```typescript
+type AxisName = "Visibilidade" | "Reputação" | "Consistência";
+type LabHint = "lab_1" | "lab_2" | "lab_3" | null;
+type ProgressStage =
+  | "identifying" | "scanning_google" | "scanning_instagram"
+  | "scanning_site" | "scanning_web" | "synthesizing";
+type DiagnosticState =
+  | "pending" | "running" | "candidate_picker" | "done" | "error" | "expired";
+
+interface ProgressData {
+  reviews_count?: number;
+  rating?: number;
+  last_post_days_ago?: number;
+  instagram_followers?: number;
+  instagram_posts?: number;
+  facebook_followers?: number;
+  site_url?: string;
+  source_found?: string;
+  hours_today?: string;
+  [k: string]: unknown;
+}
+
+interface ProgressLine {
+  ts: string;
+  text: string;
+  stage?: ProgressStage;
+  data?: ProgressData;
+}
+
+interface Recommendation {
+  action: string;
+  detail?: string;
+}
+
+interface Axis {
+  name: AxisName;
+  summary: string;
+  recommendations: Recommendation[];
+  evidence_count?: number;
+  partial?: boolean;
+  partial_reason?: string;
+}
+
+interface DiagnosticResult {
+  shop: { name: string; address: string; place_id?: string; thumbnail_url?: string };
+  axes: Axis[];                    // always exactly 3, in Visibilidade/Reputação/Consistência order
+  lab_hint: LabHint;
+  generated_at?: string;
+  model_variant?: "sonnet" | "opus";
+}
+
+interface AutocompletePrediction {
+  place_id: string;
+  name: string;
+  address: string;
+  thumbnail_url?: string;
+  category?: string;
+}
+
+interface AutocompleteResponse {
+  predictions: AutocompletePrediction[];
+}
+
+interface DiagnosticRequest {
+  place_id?: string;     // preferred — from autocomplete
+  shop_name: string;     // always present
+  parish?: string;       // optional fallback when place_id missing
+}
+
+interface DiagnosticResponse {
+  sid: string;
+  cached: boolean;
+  poll_url: string;      // "/api/status?sid=..."
+}
+
+interface StatusResponse {
+  sid: string;
+  state: DiagnosticState;
+  progress: ProgressLine[];      // append-only, in time order
+  candidates?: AutocompletePrediction[];
+  result?: DiagnosticResult;
+  error?: { class: string; message: string };
+  cached?: boolean;
+}
+```
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/healthz` | **Live.** Returns `{ ok: true, ts: "..." }`. |
+| GET | `/api/autocomplete?q=...&parish=...` | **Live.** Returns `AutocompleteResponse`. Cache for 10 min server-side. Min 2 chars. |
+| POST | `/api/diagnostic` | Body: `DiagnosticRequest`. Returns 202 + `DiagnosticResponse`. **Returns 501 right now (Day 3 implementation pending) — use the mock data below until JD ships it.** |
+| GET | `/api/status?sid=...` | Returns `StatusResponse`. **Mocked for now.** |
+| GET | `/api/result/:sid` | Returns raw `DiagnosticResult` JSON. **Mocked for now.** |
+| GET | `/r/:sid` | Returns server-rendered HTML with `window.__INITIAL_DATA__` injected. **API team builds this; you build the JS that hydrates it.** |
+| GET | `/api/ics?sid=...&lab=N` | Returns `text/calendar` (iOS) or 302 to Google Calendar URL (Android, UA-detected). **Mocked for now.** |
+| GET | `/api/share?sid=...` | Returns `{ url: string }` — pre-filled WhatsApp share URL. **Mocked for now.** |
+
+### Polling cadence (for `/api/status`)
+
+```js
+// Pseudocode
+let pollDelay = 200;  // first poll quickly after submit
+const start = Date.now();
+async function poll(sid) {
+  const res = await fetch(`/api/status?sid=${sid}`);
+  const status = await res.json();
+  if (status.state === "done") { showReveal(status.result); return; }
+  if (status.state === "error") { showError(status.error); return; }
+  if (status.state === "expired") { showExpired(); return; }
+  renderProgress(status.progress);
+  const elapsed = Date.now() - start;
+  pollDelay = elapsed < 30_000 ? 800 : 1500;
+  setTimeout(() => poll(sid), pollDelay);
+}
+```
+
+On network failure, exponential backoff: 1s → 2s → 4s → 8s → max 15s. Show a muted "Sem rede — vou tentar de novo" line. Resume polling on success without resetting the diagnostic.
+
+---
+
+## Mock data (for development before API Day 3 lands)
+
+### Mock `/api/autocomplete`
+
+```json
+{
+  "predictions": [
+    {
+      "place_id": "ChIJSTUB_casa_januario",
+      "name": "Casa Januário",
+      "address": "Rua Cedofeita 348, 4050-174 Porto",
+      "category": "grocery_store"
+    },
+    {
+      "place_id": "ChIJSTUB_pinguim_cafe",
+      "name": "Pinguim Café",
+      "address": "Rua Galeria de Paris, Sé, Porto",
+      "category": "cafe"
+    },
+    {
+      "place_id": "ChIJSTUB_moutinho",
+      "name": "Moutinho Ópticas",
+      "address": "Rua Cedofeita, Porto",
+      "category": "store"
+    }
+  ]
+}
+```
+
+### Mock `/api/status` lifecycle
+
+Simulate this sequence (12-15 seconds in dev, with timeouts to space out the events):
+
+**At t=0s:**
+```json
+{
+  "sid": "01HFAKE",
+  "state": "running",
+  "progress": [
+    { "ts": "...", "text": "A encontrar a Casa Januário em Cedofeita…", "stage": "identifying" }
+  ]
+}
+```
+
+**At t=2s:** add to progress array:
+```json
+{ "ts": "...", "text": "87 reviews no Google — boa tracção.", "stage": "scanning_google",
+  "data": { "reviews_count": 87, "rating": 4.3 } }
+```
+
+**At t=4s:** add:
+```json
+{ "ts": "...", "text": "Encontrei-te no Comércio com História.", "stage": "scanning_web",
+  "data": { "source_found": "Comércio com História" } }
+```
+
+**At t=6s:** add:
+```json
+{ "ts": "...", "text": "Site activo — casajanuario.pt", "stage": "scanning_site",
+  "data": { "site_url": "https://casajanuario.pt", "facebook_followers": 8849 } }
+```
+
+**At t=8s:** add:
+```json
+{ "ts": "...", "text": "Instagram: 1 522 seguidores, 449 publicações.", "stage": "scanning_instagram",
+  "data": { "instagram_followers": 1522, "instagram_posts": 449, "last_post_days_ago": 23 } }
+```
+
+**At t=10s:** add:
+```json
+{ "ts": "...", "text": "Time Out nomeou a tua rua a 3.ª mais cool do mundo.", "stage": "scanning_web",
+  "data": { "source_found": "Time Out Coolest Streets" } }
+```
+
+**At t=12s:** add:
+```json
+{ "ts": "...", "text": "A juntar tudo numa análise…", "stage": "synthesizing" }
+```
+
+**At t=15s:** state → "done", `result` populated:
+
+### Mock `/api/result/:sid`
+
+```json
+{
+  "shop": {
+    "name": "Casa Januário",
+    "address": "Rua Cedofeita 348, 4050-174 Porto",
+    "place_id": "ChIJSTUB_casa_januario"
+  },
+  "axes": [
+    {
+      "name": "Visibilidade",
+      "summary": "Já tens presença em múltiplos canais — site com loja online, Instagram, Facebook, Comércio com História e até a Time Out te citou. A maior oportunidade está em crescer no Instagram: 1 522 seguidores é pouco para uma loja com esta notoriedade.",
+      "recommendations": [
+        { "action": "Activa o Instagram com um post por semana centrado num produto icónico ou numa história da loja — a longevidade de 100 anos é conteúdo que se escreve sozinho." },
+        { "action": "Confirma que o horário no Google Maps está actualizado e bate certo com o do Comércio com História." }
+      ],
+      "evidence_count": 6
+    },
+    {
+      "name": "Reputação",
+      "summary": "Já tens 87 avaliações no Google com 4.3 estrelas e menções editoriais na Time Out e JN. A maior oportunidade está em responder publicamente às reviews — agora não há respostas tuas a 5 reviews recentes, e isso muda a leitura para quem chega.",
+      "recommendations": [
+        { "action": "Responde às próximas 10 reviews do Google com uma frase personalizada que mencione o produto ou o momento descrito pelo cliente." },
+        { "action": "Pede a 5 clientes habituais por semana que deixem uma review no Google — uma frase chega." }
+      ],
+      "evidence_count": 87
+    },
+    {
+      "name": "Consistência",
+      "summary": "Já tens uma narrativa coerente — mercearia fina desde 1926, terceira geração — em todos os directórios. A maior oportunidade está em dois detalhes: a imagem de partilha do site está em falta e o número da porta difere entre fontes (348 vs 352).",
+      "recommendations": [
+        { "action": "Adiciona uma og:image ao site — quando alguém partilha o link no WhatsApp, aparece uma caixa cinzenta sem imagem em vez de uma foto da loja." },
+        { "action": "Confirma e unifica o número da porta (348 ou 352) no Google Maps, no site e no Facebook." }
+      ]
+    }
+  ],
+  "lab_hint": "lab_2",
+  "generated_at": "2026-05-15T14:30:00Z",
+  "model_variant": "sonnet"
+}
+```
+
+Wire your dev server to return these mocks via a switch / env var. When the real API lands, swap the base URL.
+
+---
+
+## Look and feel
+
+The aesthetic reference is **AHI's existing website** (warm cream, muted neutrals, serif display, editorial calm). NOT Spotify Wrapped's bright purple/pink/yellow gradients. The "Spotify-Wrapped style" refers to the **scene-by-scene reveal pattern + big bold typography**, not the colors.
+
+### Design tokens (paste into `css/tokens.css` verbatim)
+
+```css
+:root {
+  /* Color */
+  --bg:        #faf9f7;   /* page background */
+  --surface:   #f7f6f3;   /* card surface */
+  --text:      #37352f;   /* body */
+  --muted:     #5c5b57;   /* secondary text, GDPR microcopy, footer */
+  --border:    #e9e9e7;
+
+  /* Axis accents — muted neutrals only, NEVER traffic-light */
+  --accent-vis: #245d80;  /* Visibilidade — calm blue */
+  --accent-rep: #37352f;  /* Reputação — graphite */
+  --accent-con: #5c5b57;  /* Consistência — warm grey */
+
+  /* Type */
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Type scale — 40-60yo audience, mobile, 4G */
+  --text-body:    18px;
+  --text-summary: 20px;
+  --text-h2:      22px;
+  --text-h1:      26px;
+  --text-hero:    36px;   /* shop name, axis name in reveal */
+  --text-mega:    64px;   /* big numbers in waiting/reveal */
+
+  /* Spacing */
+  --space-xs:  8px;
+  --space-sm: 12px;
+  --space-md: 20px;
+  --space-lg: 32px;
+  --space-xl: 48px;
+
+  /* Touch targets */
+  --target-min: 48px;
+
+  /* Layout */
+  --max-width: 480px;     /* readable column on tablets */
+  --radius-card: 12px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, .hero { font-family: var(--font-serif); }
+
+button, [role="button"] {
+  min-height: var(--target-min);
+  min-width: var(--target-min);
+  font-size: var(--text-body);
+}
+
+input { font-size: var(--text-body); }  /* prevents iOS zoom */
+
+/* Focus ring — DO NOT remove with outline:none */
+*:focus-visible {
+  outline: 3px solid var(--accent-vis);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+### Typography rules
+
+- H1 / hero / shop names → serif (Georgia stack) — gives editorial weight
+- Body, buttons, labels → system sans (Apple SF / Roboto / Segoe) — fast, native, free
+- Big numbers in waiting + reveal → serif, `font-feature-settings: "tnum"` for tabular figures (so animated count-ups don't wiggle)
+- DO NOT load a custom web font (no Inter, no Fraunces, no Playfair). System stack only — protects performance budget on 4G.
+
+### Layout principles
+
+- One column, centered, max 480px wide
+- Generous whitespace — this is editorial, not dashboard
+- Each scene in the reveal is full-viewport (`height: 100dvh`)
+- Cards have `border-radius: 12px`, no heavy shadow (subtle 1px border instead)
+- No gradients on backgrounds. Solid `--bg` everywhere.
+
+### Brand chrome
+
+- Top-left: small wordmark "AHI" + tiny "Fórum do Comércio" tag, single line, 14px muted
+- Footer (waiting + reveal): "Já ajudámos 200+ comerciantes do Porto este ano. — AHI" in muted, small, never hero
+- AHI wordmark: text only — `font-weight: 600; letter-spacing: -0.02em; color: var(--text);`. No logo asset for v1.
+
+---
+
+## Tone discipline (for any UI copy you write)
+
+These 10 rules apply not just to agent output but to ALL text you author — button labels, error messages, microcopy, share text. JD reviews tone personally; tone slips are the #1 thing that gets rejected.
+
+1. **Strengths-first framing** wherever possible. "Já tens X. A maior oportunidade está em Y." NOT "Faltam-te X e Y."
+2. **No mocking, no negative framing.** Banned: "fraco", "mau", "pobre", "estás em desvantagem", "comparado com".
+3. **Singular "tu", peer-to-peer.** Never "você", "vocês", "o senhor", "para si".
+4. **Verbs over nouns.** "Reclama o teu listing — 5 minutos." NOT "Aconselhamos a reclamação."
+5. **No exclamation marks.** Reads as chatbot.
+6. **No "claro!", "perfeito!", "ótimo!", "excelente!"** — ChatGPT tells.
+7. **One concrete number per scene/card max.** More = audit feel.
+8. **No emojis in diagnostic content.** OK exactly one in the WhatsApp share message.
+9. **Bad-rep framing pattern** (if your copy ever needs to comment on weak signals): "Tens X pessoas que se deram ao trabalho de Y — isso é tracção. A maior oportunidade está em Z." NOT "Os teus números são fracos."
+10. **Kit-de-arranque framing pattern** (for shops with no presence yet): "Estás a começar do zero — e isso é uma vantagem porque podes fazer cada peça bem desde o início." NOT "Não tens presença."
+
+### UI copy — locked translations (use these exactly)
+
+| Context | PT-PT |
+|---|---|
+| Page title | "Raio-X Digital — AHI" |
+| H1 hero | "Vê o teu raio-x digital em 90 segundos" |
+| Form label | "A tua loja" |
+| Form placeholder | "Começa a escrever o nome da loja…" |
+| Submit button (Phase 1) | "Começar" |
+| Confirm button (Phase 2) | "Sim, começar" |
+| Back-to-search | "Procurar outra" |
+| GDPR microcopy | "Lemos só fontes públicas (Google, Instagram, web). Não guardamos dados pessoais." |
+| Network error | "Sem rede agora — toca aqui para tentar de novo." |
+| Wait timeout | "Demorou mais do que esperava — segue por aqui dentro de uns minutos." |
+| Wrong-shop link | "Esta análise não bate certo? Recomeça aqui." |
+| Reveal Scene 1 prefix | "O Raio-X Digital de" |
+| Reveal Scene 2 prefix | "Encontrei-te em" |
+| Reveal Scene 6 title | "O que fazer esta semana" |
+| Reveal Scene 6 footer | "Cada um leva menos de 30 minutos." |
+| Reveal Scene 7 prefix | "Amanhã às 14:00" |
+| Reveal Scene 7 button | "Lembra-me" |
+| Reveal Scene 8 title | "Partilha o teu raio-x" |
+| Share WhatsApp button | "WhatsApp" |
+| Share copy button | "Copiar link" |
+| Share confirmation | "Copiado ✓" |
+| AHI footer | "Já ajudámos 200+ comerciantes do Porto este ano. — AHI" |
+| WhatsApp share message | "Acabei de fazer um raio-x digital da minha loja em 90 seg. Toma o teu: {URL} — AHI" |
+| ICS event title | "Lab {N} — Fórum do Comércio do Porto" |
+| ICS event location | "Salão Nobre, Alfândega do Porto" |
+
+If you need copy that isn't in this table, follow the 10 rules and propose the line in your output for JD to approve before locking it.
+
+---
+
+## Animation specifics
+
+### Number count-up (for waiting fact cards + reveal scene 2)
+
+Pure JS, no library. CSS `font-variant-numeric: tabular-nums` to prevent wiggle.
+
+```js
+function countUp(el, target, duration = 1200) {
+  if (matchMedia('(prefers-reduced-motion)').matches) {
+    el.textContent = formatNumber(target);
+    return;
+  }
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);  // ease-out cubic
+    el.textContent = formatNumber(Math.floor(target * eased));
+    if (t < 1) requestAnimationFrame(step);
+    else el.textContent = formatNumber(target);
+  }
+  requestAnimationFrame(step);
+}
+const formatNumber = n => new Intl.NumberFormat('pt-PT').format(n);
+```
+
+### Scene transitions (reveal)
+
+CSS-only via `opacity` + `transform: translateY(...)`:
+
+```css
+.scene { opacity: 0; transform: translateY(20px); transition: opacity 300ms, transform 300ms; }
+.scene.active { opacity: 1; transform: translateY(0); }
+```
+
+Cycle one scene at a time. Older scenes don't re-render — just hide/show by adding/removing `.active`.
+
+### Fact card stack (waiting)
+
+CSS `transform: translateY()` for slide-up + `opacity` for fade. Older cards fade-out as new arrive (max 5 visible at once). Don't unmount immediately — keep in DOM at `opacity: 0` for screen reader continuity.
+
+### Progress bar (waiting)
+
+Animated width transition between stage thresholds. ~600ms easing.
+
+### What NOT to do
+
+- No spinning loaders, no "AI thinking..." dot animations, no shimmer skeletons in the reveal. The fact cards ARE the loading UX.
+- No parallax, no 3D transforms, no canvas/WebGL.
+- No background videos, no Lottie animations.
+- No sound effects.
+
+---
+
+## Accessibility (non-negotiable)
+
+- All interactive elements ≥ 48×48px touch target
+- Body text 18px minimum, summary 20px, hero 26-36px
+- Color contrast ≥ 4.5:1 for body (verified: `--text` on `--bg` = 13.6:1, `--muted` on `--bg` = 8.1:1)
+- Visible focus rings (defined in tokens.css, do not override with `outline: none`)
+- `aria-live="polite"` on the polling progress region + each fact card carries `aria-label` describing its content
+- Reveal scenes have `role="region"` with `aria-label` per scene
+- Tap-to-advance on reveal: also bind to spacebar/enter for keyboard
+- Heading hierarchy: H1 only for shop name in reveal Scene 1, H2 for axis names, no skipping levels
+- `prefers-reduced-motion`: kill all transitions/animations (set in tokens.css)
+- All buttons + links have meaningful text (no "Click here" / "Tap here")
+- `lang="pt-PT"` on `<html>`
+- Form input has visible label (above, not placeholder-only)
+
+Run Lighthouse — target a11y score ≥ 90.
+
+---
+
+## Mobile-first specifics
+
+- Viewport meta: `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">`
+- Use `100dvh` for full-screen scenes (handles iOS Safari address bar correctly)
+- Form input: `font-size: 18px` to prevent iOS zoom on focus
+- Tap targets: never less than 48px (recommended 56px for primary CTAs)
+- Test on iPhone SE 1st gen (smallest viable target) and Samsung A-series mid-2010s
+- iOS Safari: `.ics` files open Calendar via `Content-Type: text/calendar`; backend handles UA detection — frontend just hits `/api/ics?sid=...&lab=N`
+- Android: tap on the same endpoint → backend returns 302 to Google Calendar add-event URL
+- WhatsApp link: `https://wa.me/?text=...` (universal, works on iOS + Android)
+- No PWA / install prompt for v1 (ephemeral 90s experience doesn't need it)
+
+---
+
+## Errors
+
+Your error states must be:
+1. Always in PT-PT, warm tone (no "Error 502 upstream failed")
+2. Always actionable (give the user a next step)
+3. Never blocking permanently (always offer a retry or restart)
+
+Specific cases:
+
+| Scenario | Show |
+|---|---|
+| Network error during autocomplete | Inline below input: "Sem rede agora — toca para tentar." Retry on tap. |
+| Network error during POST diagnostic | Modal / inline: "Sem rede agora — toca aqui para tentar de novo." Retain form values. |
+| Network error during polling | Muted line beneath fact cards: "Sem rede — vou tentar de novo." Auto-resume. |
+| Status `error` from API | Full-screen warm message: "Algo correu mal — tenta de novo daqui a uns segundos. [Recomeçar]" |
+| Status `expired` | Full-screen: "Esta análise expirou — recomeça aqui. [Recomeçar]" |
+| 3+ minutes elapsed, still running | Full-screen: "Demorou mais do que esperava — segue por aqui dentro de uns minutos. [Ver agora]" |
+| Wrong shop after confirming | Persistent link bottom of every reveal scene: "Esta análise não bate certo? Recomeça aqui." |
+| Browser refresh mid-flight | Read sid from URL, resume from latest state. No error shown. |
+
+Never show:
+- Stack traces
+- HTTP status codes
+- "Powered by Cloudflare" / "Generated by Claude" badges
+- "An unknown error occurred"
+
+---
+
+## Acceptance criteria
+
+You're done when:
+
+- [ ] User can type a Porto shop name and pick from autocomplete in ≤3 seconds
+- [ ] Submitting kicks off polling; progress fact cards animate in as data arrives
+- [ ] When `state === "done"`, smooth transition to reveal Scene 1
+- [ ] All 8 (or 7) reveal scenes render with the locked PT copy
+- [ ] Tap-to-advance works; auto-advance respects dwell times; tap-to-skip-back not present (linear forward)
+- [ ] Lab CTA Scene 7 button hits `/api/ics?sid=...&lab=N` correctly
+- [ ] WhatsApp share opens with pre-filled PT message containing the share URL
+- [ ] Copy link button copies and confirms with "Copiado ✓"
+- [ ] Hitting `/r/:sid` directly (with mock injected data) renders Scene 1 → 8 without going through the wait phase
+- [ ] All copy in PT-PT, all 10 tone rules respected
+- [ ] Lighthouse mobile a11y ≥ 90 on the result page
+- [ ] Page weight per route ≤ 50KB total, JS ≤ 30KB gzipped
+- [ ] Tested on iPhone Safari + Android Chrome at simulated 4G
+- [ ] `prefers-reduced-motion` honored (no animations, instant transitions)
+- [ ] Network drop mid-poll → automatic resume + warm message
+- [ ] Browser refresh mid-poll → resumes from URL sid, no data lost
+
+---
+
+## What NOT to do
+
+- ❌ **Do not** modify any file in `api/`. The API is a separate codebase with its own deploy pipeline.
+- ❌ **Do not** reimplement diagnostic logic in JS. The agent on Anthropic's side does the analysis; you only call the API.
+- ❌ **Do not** add a "log in" / "sign up" / "save my report" feature. This is anonymous, ephemeral.
+- ❌ **Do not** add tracking/analytics beyond what the API exposes. No GA, no Mixpanel, no Plausible.
+- ❌ **Do not** ship a service worker or PWA manifest for v1.
+- ❌ **Do not** use AI vocabulary in copy: "delve", "leverage", "robust", "comprehensive", "harness", "unlock potential", "elevate".
+- ❌ **Do not** invent UI copy outside the locked translation table without proposing it for approval first.
+- ❌ **Do not** add a leaderboard, social comparison ("vs other shops"), or competitor benchmarking — these were explicitly out of scope.
+- ❌ **Do not** show the diagnostic as a single long page. The reveal IS the product. Trust the scene model.
+- ❌ **Do not** make the form ask for email, phone, name, age, or any merchant identifier beyond the shop name.
+- ❌ **Do not** use any custom web font (no Inter, no Playfair, no Fraunces). System stack only.
+- ❌ **Do not** use heroicons, font-awesome, lucide, or any icon library. The product has zero icons in v1 — use text and typography.
+- ❌ **Do not** add dark mode toggle. Light mode only (audience uses phones in well-lit coffee-break setting).
+- ❌ **Do not** auto-play sound or video.
+- ❌ **Do not** spawn modals/dialogs except for the "still running after 3 min" timeout state.
+
+---
+
+## Workflow recommendation
+
+1. **Day 1**: Read this brief end to end. Set up the repo (`ui/`), the design tokens, the page shells.
+2. **Day 1-2**: Build Phase 1 (autocomplete + form). Test against the **live deployed API at `https://raiox-api.jd-ad0.workers.dev/api/autocomplete`** (already live, no local setup needed).
+3. **Day 2**: Build Phase 3 (waiting + fact card animation) against the mock /api/status data above. Time-spread the events using `setTimeout` to simulate real cadence.
+4. **Day 2-3**: Build Phase 4 (reveal scene engine) against the mock `DiagnosticResult`. Get all 8 scenes rendering. Tune dwell times.
+5. **Day 3**: Build Phase 5 (share landing) — the same engine, fed from `window.__INITIAL_DATA__`.
+6. **Day 4**: Polish — animations, transitions, error states, accessibility, network resilience. Lighthouse audit.
+7. **Day 5**: Hand back to JD for tone QA + cross-device testing. Fix anything flagged.
+
+---
+
+## When you're stuck
+
+If you hit a real ambiguity that this brief doesn't cover:
+1. Make the most conservative choice (smaller, simpler, safer)
+2. Document the choice in a `DECISIONS.md` at the repo root
+3. Move on — don't block
+
+If you hit something you can't decide alone (a tone slip you're unsure about, a major UX deviation), flag it in `DECISIONS.md` under "Pending JD review" and continue with a placeholder.
+
+---
+
+## Reference files in the parent repo
+
+These exist for context. You don't need to read them to build, but they're available:
+
+- `../background/build-plan.md` — full operational build plan for both UI and API
+- `../background/design-doc.md` — design rationale + autoplan review history
+- `../background/coffee-break-demo.md` — the original product brief (everything started here)
+- `../api/src/types.ts` — the canonical TypeScript types (mirror them in your code)
+- `../api/src/agent/system-prompt.md` — the agent's system prompt (informs tone)
+
+You're building the surface that the merchant sees. The agent does the thinking; the API moves data; you create the experience. Do that one thing brilliantly.
