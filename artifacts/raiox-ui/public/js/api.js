@@ -74,9 +74,11 @@ export async function getResult(sid) {
   return await res.json();
 }
 
-// Locked share text from the brief's translation table — used verbatim.
+// Locked share text from the brief's translation table.
+// Brief tone rules 6 + 8: diagnostic content has no emojis; the WhatsApp share
+// message is the one exception — exactly one emoji is allowed.
 const SHARE_TEXT_TEMPLATE = (url) =>
-  `Acabei de fazer um raio-x digital da minha loja em 90 seg. Toma o teu: ${url} — AHI`;
+  `🔍 Acabei de fazer um raio-x digital da minha loja em 90 seg. Toma o teu: ${url} — AHI`;
 
 export function shareWhatsappUrl(shareUrl) {
   return `https://wa.me/?text=${encodeURIComponent(SHARE_TEXT_TEMPLATE(shareUrl))}`;

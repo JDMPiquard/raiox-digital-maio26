@@ -86,10 +86,18 @@ function setHighlight(i) {
 function pick(i) {
   const p = predictions[i];
   if (!p) return;
+  // Selecting a real Google Places hit always wins over any earlier "manual" path.
+  if (manualMode) exitManualMode();
   selected = p;
   input.value = p.name;
   setExpanded(false);
   showConfirm(p);
+}
+
+function exitManualMode() {
+  manualMode = false;
+  const parishField = document.getElementById("manual-parish");
+  if (parishField && parishField.parentElement) parishField.parentElement.remove();
 }
 
 function clearSelection() {
