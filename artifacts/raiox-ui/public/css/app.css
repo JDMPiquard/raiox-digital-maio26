@@ -66,12 +66,15 @@
   line-height: 1.6;
 }
 .combo-empty button {
-  display: inline;
-  background: none; border: 0; padding: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 0;
+  background: none; border: 0;
   color: var(--accent-vis); text-decoration: underline;
-  min-height: 0; min-width: 0;
+  font: inherit;
 }
-.combo-empty-alt { margin-top: 6px; font-size: 16px; }
+.combo-empty-alt { display: block; margin-top: 4px; font-size: 16px; }
 
 .confirm-row {
   display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
@@ -126,9 +129,11 @@
   padding: 12px; border-radius: var(--radius-card); margin: 0; font-size: 16px; }
 .field-error[hidden] { display: none; }
 .field-error button {
-  background: none; border: 0; padding: 0;
+  display: inline-flex; align-items: center;
+  min-height: 48px; padding: 12px 0;
+  background: none; border: 0;
   color: var(--accent-vis); text-decoration: underline;
-  min-height: 0; min-width: 0;
+  font: inherit;
 }
 
 /* ---------- Confirm card ---------- */

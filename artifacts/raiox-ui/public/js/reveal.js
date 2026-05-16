@@ -68,9 +68,9 @@ export function startReveal({ result, sid, distinctSources, shareLanding = false
   function scheduleAuto() {
     clearTimeout(timer);
     const dwell = scenes[current].dwellMs;
-    if (dwell > 0 && !prefersReducedMotion()) {
-      timer = setTimeout(advance, dwell);
-    }
+    // prefers-reduced-motion only suppresses transitions (handled in CSS).
+    // Auto-advance still fires so the experience completes for keyboard/AT users.
+    if (dwell > 0) timer = setTimeout(advance, dwell);
   }
 
   function advance() { setCurrent(current + 1); }
