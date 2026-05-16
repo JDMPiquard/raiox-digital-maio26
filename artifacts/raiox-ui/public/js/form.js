@@ -151,9 +151,18 @@ function showConfirm(p) {
   const card = document.createElement("div");
   card.id = "confirm-card";
   card.className = "confirm-card";
+  const initial = (p.name?.trim()?.[0] ?? "·").toUpperCase();
+  const thumb = p.thumbnail_url
+    ? `<img class="confirm-thumb" src="${escapeHtml(p.thumbnail_url)}" alt="" />`
+    : `<div class="confirm-thumb confirm-thumb--placeholder" aria-hidden="true">${escapeHtml(initial)}</div>`;
   card.innerHTML = `
-    <div class="confirm-name">${escapeHtml(p.name)}</div>
-    <div class="confirm-addr">${escapeHtml(p.address)}</div>
+    <div class="confirm-row">
+      ${thumb}
+      <div class="confirm-text">
+        <div class="confirm-name">${escapeHtml(p.name)}</div>
+        <div class="confirm-addr">${escapeHtml(p.address)}</div>
+      </div>
+    </div>
     <p class="confirm-q">É esta a tua loja?</p>
     <button type="button" class="back-link" id="back-search">← Procurar outra</button>
   `;

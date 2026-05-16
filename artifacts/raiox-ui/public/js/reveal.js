@@ -1,7 +1,7 @@
 // Phase 4 (REVEAL) + Phase 5 (SHARE LANDING) — the same scene engine.
 
 import { countUp, formatNumber, escapeHtml, prefersReducedMotion, LAB_TITLES } from "/js/util.js";
-import { shareWhatsappUrl, icsUrl, publicShareUrl } from "/js/api.js";
+import { shareWhatsappUrl, icsUrl, publicShareUrl, getShareUrl } from "/js/api.js";
 
 const ACCENTS = {
   "Visibilidade":  "var(--accent-vis)",
@@ -140,25 +140,23 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
     });
   });
 
-  // Scene 6 — Esta semana
-  if (!shareLanding) {
-    const top3 = result.axes
-      .map((a) => a.recommendations?.[0]?.action)
-      .filter(Boolean)
-      .slice(0, 3);
-    scenes.push({
-      ariaLabel: "Cena: O que fazer esta semana",
-      dwellMs: 7000,
-      html: `
-        <h2 class="week-title">O que fazer esta semana</h2>
-        <ol class="week-list">
-          ${top3.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}
-        </ol>
-        <p class="week-foot">Cada um leva menos de 30 minutos.</p>`,
-    });
-  }
+  // Scene 6 — Esta semana (shown in both modes)
+  const top3 = result.axes
+    .map((a) => a.recommendations?.[0]?.action)
+    .filter(Boolean)
+    .slice(0, 3);
+  scenes.push({
+    ariaLabel: "Cena: O que fazer esta semana",
+    dwellMs: 7000,
+    html: `
+      <h2 class="week-title">O que fazer esta semana</h2>
+      <ol class="week-list">
+        ${top3.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}
+      </ol>
+      <p class="week-foot">Cada um leva menos de 30 minutos.</p>`,
+  });
 
-  // Scene 7 — Lab CTA (or share-landing CTA)
+  // Scene 7 — replaced by "Faz o teu raio-x" CTA on /r/:sid (share-landing).
   if (shareLanding) {
     scenes.push({
       ariaLabel: "Cena: Faz o teu raio-x",
@@ -193,7 +191,7 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
     });
   }
 
-  // Scene 8 — Share
+  // Scene 8 — Share. WhatsApp URL comes from GET /api/share (with safe fallback).
   const shareUrl = publicShareUrl(sid);
   scenes.push({
     ariaLabel: "Cena: Partilha",
@@ -207,6 +205,9 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
       <span class="scene-accent-line" aria-hidden="true"></span>
       <p class="share-foot">Já ajudámos 200+ comerciantes do Porto este ano. — AHI</p>`,
     onEnter(el) {
+      // Replace the WA href with the server-prepared one as soon as it arrives.
+      const wa = el.querySelector("#share-wa");
+      getShareUrl(sid).then((url) => { if (url) wa.href = url; }).catch(() => {});
       const btn = el.querySelector("#share-copy");
       btn.addEventListener("click", async () => {
         try {

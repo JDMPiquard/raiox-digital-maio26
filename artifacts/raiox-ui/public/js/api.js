@@ -74,9 +74,26 @@ export async function getResult(sid) {
   return await res.json();
 }
 
+// Brief locks one (and only one) emoji in the WhatsApp message.
+const SHARE_TEXT_TEMPLATE = (url) =>
+  `🔍 Acabei de fazer um raio-x digital da minha loja em 90 seg. Toma o teu: ${url} — AHI`;
+
 export function shareWhatsappUrl(shareUrl) {
-  const text = `Acabei de fazer um raio-x digital da minha loja em 90 seg. Toma o teu: ${shareUrl} — AHI`;
-  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/?text=${encodeURIComponent(SHARE_TEXT_TEMPLATE(shareUrl))}`;
+}
+
+// Server-prepared WhatsApp URL per brief (GET /api/share). Falls back to the
+// locally-constructed wa.me link when the endpoint is not yet live.
+export async function getShareUrl(sid) {
+  if (mockMode()) return shareWhatsappUrl(publicShareUrl(sid));
+  try {
+    const res = await jsonFetch(`/api/share?sid=${encodeURIComponent(sid)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data.url === "string" && data.url.length > 0) return data.url;
+    }
+  } catch { /* fall through */ }
+  return shareWhatsappUrl(publicShareUrl(sid));
 }
 
 export function icsUrl(sid, lab) {

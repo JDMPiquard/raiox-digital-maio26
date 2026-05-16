@@ -2,11 +2,14 @@
 
 export const MOCK_PREDICTIONS = [
   { place_id: "ChIJSTUB_casa_januario", name: "Casa Januário",
-    address: "Rua Cedofeita 348, 4050-174 Porto", category: "grocery_store" },
+    address: "Rua Cedofeita 348, 4050-174 Porto", category: "grocery_store",
+    thumbnail_url: "" },
   { place_id: "ChIJSTUB_pinguim_cafe", name: "Pinguim Café",
-    address: "Rua Galeria de Paris, Sé, Porto", category: "cafe" },
+    address: "Rua Galeria de Paris, Sé, Porto", category: "cafe",
+    thumbnail_url: "" },
   { place_id: "ChIJSTUB_moutinho", name: "Moutinho Ópticas",
-    address: "Rua Cedofeita, Porto", category: "store" },
+    address: "Rua Cedofeita, Porto", category: "store",
+    thumbnail_url: "" },
 ];
 
 export const MOCK_RESULT = {
