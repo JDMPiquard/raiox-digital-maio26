@@ -1,0 +1,82 @@
+:root {
+  /* Color */
+  --bg:        #faf9f7;
+  --surface:   #f7f6f3;
+  --text:      #37352f;
+  --muted:     #5c5b57;
+  --border:    #e9e9e7;
+
+  /* Axis accents — muted neutrals only, NEVER traffic-light */
+  --accent-vis: #245d80;
+  --accent-rep: #37352f;
+  --accent-con: #5c5b57;
+
+  /* Type */
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Type scale */
+  --text-body:    18px;
+  --text-summary: 20px;
+  --text-h2:      22px;
+  --text-h1:      26px;
+  --text-hero:    36px;
+  --text-mega:    64px;
+
+  /* Spacing */
+  --space-xs:  8px;
+  --space-sm: 12px;
+  --space-md: 20px;
+  --space-lg: 32px;
+  --space-xl: 48px;
+
+  /* Touch targets */
+  --target-min: 48px;
+
+  /* Layout */
+  --max-width: 480px;
+  --radius-card: 12px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+h1, h2, .hero { font-family: var(--font-serif); font-weight: 600; line-height: 1.2; }
+
+button, [role="button"] {
+  min-height: var(--target-min);
+  min-width: var(--target-min);
+  font-size: var(--text-body);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, button { font: inherit; color: inherit; }
+input { font-size: var(--text-body); }
+
+a { color: var(--accent-vis); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { text-decoration: none; }
+
+*:focus-visible {
+  outline: 3px solid var(--accent-vis);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Raio-X Digital — AHI</title>
+    <meta name="description" content="Vê o teu raio-x digital em 90 segundos. Lemos só fontes públicas — Google, Instagram, web." />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="Raio-X Digital — AHI" />
+    <meta property="og:description" content="Vê o teu raio-x digital em 90 segundos." />
+    <meta property="og:type" content="website" />
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="page-scan">
+    <header class="brand-bar">
+      <span class="wordmark">AHI</span>
+      <span class="brand-tag">Fórum do Comércio</span>
+    </header>
+
+    <main class="container">
+      <h1 class="hero hero-h1">Vê o teu raio-x digital em 90 segundos</h1>
+      <p class="hero-sub">Uma leitura curta da tua presença online — Google, Instagram, web. Em 90 segundos, no telemóvel.</p>
+
+      <form id="scan-form" class="scan-form" autocomplete="off" novalidate>
+        <label for="shop-input" class="field-label">A tua loja</label>
+        <div class="combo" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-owns="shop-list">
+          <input
+            id="shop-input"
+            class="field-input"
+            type="text"
+            inputmode="search"
+            autocomplete="off"
+            autocapitalize="words"
+            spellcheck="false"
+            placeholder="Começa a escrever o nome da loja…"
+            aria-autocomplete="list"
+            aria-controls="shop-list"
+            aria-activedescendant=""
+          />
+          <ul id="shop-list" class="combo-list" role="listbox" hidden></ul>
+        </div>
+        <p id="form-error" class="field-error" hidden></p>
+
+        <button id="scan-submit" type="submit" class="btn btn-primary" disabled aria-disabled="true">
+          Começar
+        </button>
+
+        <p class="microcopy">
+          Lemos só fontes públicas (Google, Instagram, web). Não guardamos dados pessoais.
+          <a class="microcopy-link" href="/privacidade.html">Saber mais</a>
+        </p>
+      </form>
+    </main>
+
+    <script type="module" src="/js/form.js"></script>
+  </body>
+</html>

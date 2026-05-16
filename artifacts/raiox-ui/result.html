@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Raio-X Digital — AHI</title>
+    <meta name="description" content="O teu raio-x digital — uma leitura curta da tua presença online." />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="page-result">
+    <!-- WAITING VIEW -->
+    <section id="view-waiting" class="view view-waiting" aria-live="polite" aria-busy="true">
+      <header class="result-top">
+        <span id="wait-shop-name" class="shop-pin">A tua loja</span>
+      </header>
+
+      <div class="progress-track" aria-hidden="true">
+        <div id="progress-bar" class="progress-bar" style="width:6%"></div>
+      </div>
+
+      <div id="fact-stack" class="fact-stack"></div>
+
+      <p id="progress-line" class="progress-line">A começar…</p>
+      <p id="net-line" class="net-line" hidden>Sem rede — vou tentar de novo.</p>
+
+      <footer class="ahi-footer">Já ajudámos 200+ comerciantes do Porto este ano. — AHI</footer>
+    </section>
+
+    <!-- ERROR / TIMEOUT VIEW -->
+    <section id="view-error" class="view view-error" hidden>
+      <div class="error-box">
+        <h2 id="error-title" class="error-title">Algo correu mal</h2>
+        <p id="error-message" class="error-message">Tenta de novo daqui a uns segundos.</p>
+        <div class="error-actions">
+          <button id="error-retry" type="button" class="btn btn-primary" hidden>Ver agora</button>
+          <a class="btn btn-secondary" href="/">Recomeçar</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- REVEAL VIEW -->
+    <section id="view-reveal" class="view view-reveal" hidden>
+      <header class="reveal-top">
+        <ol id="reveal-dots" class="reveal-dots" aria-label="Progresso da revelação"></ol>
+      </header>
+
+      <div id="scene-host" class="scene-host"></div>
+
+      <button id="scene-skip" type="button" class="scene-skip" aria-label="Avançar cena">avançar →</button>
+
+      <a class="restart-link" href="/">Esta análise não bate certo? Recomeça aqui.</a>
+    </section>
+
+    <script type="module" src="/js/result.js"></script>
+  </body>
+</html>
