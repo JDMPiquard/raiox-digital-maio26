@@ -229,8 +229,8 @@ function enterManualMode() {
     }
   } catch { /* storage disabled */ }
   // Server-side results expire fairly quickly; don't surface pills that
-  // would just lead to an "expired" error page. 24h is a safe upper bound.
-  const TTL_MS = 24 * 60 * 60 * 1000;
+  // would just lead to an "expired" error page. 72h is a safe upper bound.
+  const TTL_MS = 72 * 60 * 60 * 1000;
   const now = Date.now();
   const valid = list
     .filter((e) => e && typeof e.sid === "string" && typeof e.name === "string" && e.sid && e.name)
