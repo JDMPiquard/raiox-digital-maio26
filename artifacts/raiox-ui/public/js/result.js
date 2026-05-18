@@ -50,6 +50,7 @@ function bootLive(sid) {
 
   function onDone(result, progress) {
     const distinct = sumDistinctSources(progress);
+    rememberCompletedAssessment(sid, result);
     show(viewReveal);
     startReveal({ result, sid, distinctSources: distinct, shareLanding: false });
   }
@@ -104,4 +105,28 @@ function extractSidFromShareLanding() {
   // Path of the form `/r/:sid` for the API-rendered share landing.
   const m = window.location.pathname.match(/\/r\/([^/?#]+)/);
   return m ? m[1] : null;
+}
+
+// Persist successful diagnostics so the homepage can list them as pills.
+// De-dupes by sid (latest wins), capped at 6, newest-first.
+function rememberCompletedAssessment(sid, result) {
+  try {
+    const KEY = "raiox:history";
+    const name = result?.shop?.name;
+    if (!sid || !name) return;
+    const raw = window.localStorage.getItem(KEY);
+    let list = [];
+    if (raw) {
+      try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) list = parsed; } catch {}
+    }
+    list = list.filter((e) => e && e.sid !== sid);
+    list.unshift({
+      sid,
+      name,
+      address: result?.shop?.address ?? "",
+      completedAt: Date.now(),
+    });
+    list.sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0));
+    window.localStorage.setItem(KEY, JSON.stringify(list.slice(0, 6)));
+  } catch { /* storage disabled — fine to skip */ }
 }

@@ -215,28 +215,33 @@ function enterManualMode() {
   });
 }
 
-/* ---------- Demo chips (Casa Januário shortcut) ---------- */
+/* ---------- Recent completed assessments (pills) ---------- */
 
-const chipHost = document.getElementById("demo-chips");
-if (chipHost) {
-  chipHost.addEventListener("click", (e) => {
-    const chip = e.target.closest(".chip");
-    if (!chip) return;
-    const p = {
-      place_id: chip.dataset.pid || undefined,
-      name: chip.dataset.name || chip.textContent.trim(),
-      address: chip.dataset.addr || "",
-    };
-    if (manualMode) exitManualMode();
-    predictions = [p];
-    selected = p;
-    selected.__demo = true; // route through mock on submit
-    input.value = p.name;
-    setExpanded(false);
-    showConfirm(p);
-    submit.focus();
-  });
-}
+(function renderHistoryChips() {
+  const host = document.getElementById("history-chips");
+  if (!host) return;
+  let list = [];
+  try {
+    const raw = window.localStorage.getItem("raiox:history");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) list = parsed;
+    }
+  } catch { /* storage disabled */ }
+  if (list.length === 0) return; // stays hidden
+  list
+    .filter((e) => e && e.sid && e.name)
+    .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+    .slice(0, 6)
+    .forEach((entry) => {
+      const a = document.createElement("a");
+      a.className = "chip";
+      a.href = `/result.html?sid=${encodeURIComponent(entry.sid)}`;
+      a.textContent = entry.name;
+      host.appendChild(a);
+    });
+  host.hidden = false;
+})();
 
 /* ---------- Submit ---------- */
 
@@ -256,14 +261,9 @@ form.addEventListener("submit", async (e) => {
   submit.textContent = "Sim, começar";
 
   try {
-    const isDemo = selected?.__demo === true;
     const { sid } = await startDiagnostic(body);
     try { sessionStorage.setItem(`raiox:${sid}:shop`, body.shop_name); } catch {}
-    // Demo chips carry mock mode forward via the URL only — never via
-    // localStorage, otherwise the autocomplete on the landing page would
-    // stay locked to the three fixture shops on the next visit.
-    const qs = isDemo ? `&mock=1` : "";
-    window.location.href = `/result.html?sid=${encodeURIComponent(sid)}${qs}`;
+    window.location.href = `/result.html?sid=${encodeURIComponent(sid)}`;
   } catch {
     submit.disabled = false;
     submit.removeAttribute("aria-busy");
