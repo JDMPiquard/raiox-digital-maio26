@@ -228,18 +228,18 @@ function enterManualMode() {
       if (Array.isArray(parsed)) list = parsed;
     }
   } catch { /* storage disabled */ }
-  if (list.length === 0) return; // stays hidden
-  list
-    .filter((e) => e && e.sid && e.name)
-    .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
-    .slice(0, 6)
-    .forEach((entry) => {
-      const a = document.createElement("a");
-      a.className = "chip";
-      a.href = `/result.html?sid=${encodeURIComponent(entry.sid)}`;
-      a.textContent = entry.name;
-      host.appendChild(a);
-    });
+  const valid = list
+    .filter((e) => e && typeof e.sid === "string" && typeof e.name === "string" && e.sid && e.name)
+    .sort((a, b) => (Number(b.completedAt) || 0) - (Number(a.completedAt) || 0))
+    .slice(0, 6);
+  if (valid.length === 0) return; // stays hidden
+  valid.forEach((entry) => {
+    const a = document.createElement("a");
+    a.className = "chip";
+    a.href = `/result.html?sid=${encodeURIComponent(entry.sid)}`;
+    a.textContent = entry.name;
+    host.appendChild(a);
+  });
   host.hidden = false;
 })();
 
