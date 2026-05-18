@@ -228,10 +228,19 @@ function enterManualMode() {
       if (Array.isArray(parsed)) list = parsed;
     }
   } catch { /* storage disabled */ }
+  // Server-side results expire fairly quickly; don't surface pills that
+  // would just lead to an "expired" error page. 24h is a safe upper bound.
+  const TTL_MS = 24 * 60 * 60 * 1000;
+  const now = Date.now();
   const valid = list
     .filter((e) => e && typeof e.sid === "string" && typeof e.name === "string" && e.sid && e.name)
+    .filter((e) => (Number(e.completedAt) || 0) > now - TTL_MS)
     .sort((a, b) => (Number(b.completedAt) || 0) - (Number(a.completedAt) || 0))
     .slice(0, 6);
+  // Trim storage opportunistically so stale entries don't accumulate forever.
+  if (valid.length !== list.length) {
+    try { window.localStorage.setItem("raiox:history", JSON.stringify(valid)); } catch {}
+  }
   if (valid.length === 0) return; // stays hidden
   valid.forEach((entry) => {
     const a = document.createElement("a");

@@ -56,6 +56,7 @@ function bootLive(sid) {
   }
 
   function onError() {
+    forgetAssessment(sid);
     showError({
       message: "Algo correu mal — tenta de novo daqui a uns segundos.",
       retryLabel: "Recomeçar",
@@ -63,6 +64,7 @@ function bootLive(sid) {
     });
   }
   function onExpired() {
+    forgetAssessment(sid);
     showError({
       message: "Esta análise expirou — recomeça aqui.",
       retryLabel: "Recomeçar",
@@ -128,5 +130,21 @@ function rememberCompletedAssessment(sid, result) {
     });
     list.sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0));
     window.localStorage.setItem(KEY, JSON.stringify(list.slice(0, 6)));
+  } catch { /* storage disabled — fine to skip */ }
+}
+
+// Drop a sid from the homepage history when its result is no longer
+// retrievable (server-expired or errored), so the pill self-cleans.
+function forgetAssessment(sid) {
+  try {
+    const KEY = "raiox:history";
+    const raw = window.localStorage.getItem(KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return;
+    const next = parsed.filter((e) => e && e.sid !== sid);
+    if (next.length !== parsed.length) {
+      window.localStorage.setItem(KEY, JSON.stringify(next));
+    }
   } catch { /* storage disabled — fine to skip */ }
 }
