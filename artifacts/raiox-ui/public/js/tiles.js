@@ -52,6 +52,7 @@ export function buildTileGrid(host) {
   for (let i = 0; i < 9; i++) {
     const cell = document.createElement("div");
     cell.className = "tile";
+    cell.style.setProperty("--tile-delay", `${(i % 9) * 0.18}s`);
     cell.innerHTML = tileMotif(i % 4);
     host.appendChild(cell);
     cells.push(cell);
@@ -60,7 +61,17 @@ export function buildTileGrid(host) {
     total: 9,
     lightUp(n) {
       const lit = Math.max(0, Math.min(9, n));
-      cells.forEach((c, i) => c.classList.toggle("lit", i < lit));
+      cells.forEach((c, i) => {
+        const wasLit = c.classList.contains("lit");
+        const shouldLit = i < lit;
+        if (shouldLit && !wasLit) {
+          c.classList.add("lit");
+          c.classList.add("pop");
+          setTimeout(() => c.classList.remove("pop"), 700);
+        } else if (!shouldLit && wasLit) {
+          c.classList.remove("lit");
+        }
+      });
     },
   };
 }

@@ -14,14 +14,15 @@ const AXIS_COLOR = {
 };
 const AXIS_INDEX = { "Visibilidade": 1, "Reputação": 2, "Consistência": 3 };
 
-export function startReveal({ result, sid, distinctSources, shareLanding = false }) {
+export function startReveal({ result, sid, distinctSources, shareLanding = false, progress }) {
   const host = document.getElementById("scene-host");
   const dotsEl = document.getElementById("reveal-dots");
   const skipBtn = document.getElementById("scene-skip");
   const backBtn = document.getElementById("scene-back");
   host.innerHTML = "";
 
-  const scenes = buildScenes({ result, sid, distinctSources, shareLanding });
+  const reputationStats = extractReputationStats(progress, result);
+  const scenes = buildScenes({ result, sid, distinctSources, shareLanding, reputationStats });
 
   dotsEl.innerHTML = "";
   scenes.forEach(() => {
@@ -100,7 +101,7 @@ export function startReveal({ result, sid, distinctSources, shareLanding = false
 
 /* ---------- Scene builders ---------- */
 
-function buildScenes({ result, sid, distinctSources, shareLanding }) {
+function buildScenes({ result, sid, distinctSources, shareLanding, reputationStats }) {
   const scenes = [];
   const shop = result.shop ?? {};
   const shopName = shop.name ?? "a tua loja";
@@ -159,7 +160,7 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
     scenes.push({
       ariaLabel: `Cena: ${axis.name}`,
       dwellMs: 7500,
-      html: renderAxisScene(axis),
+      html: renderAxisScene(axis, { reputationStats }),
     });
   });
 
@@ -293,10 +294,10 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
   return scenes;
 }
 
-function renderAxisScene(axis) {
+function renderAxisScene(axis, { reputationStats } = {}) {
   const color = AXIS_COLOR[axis.name] ?? "var(--cobalt)";
   const idx = AXIS_INDEX[axis.name] ?? 1;
-  const stat = pickAxisStat(axis);
+  const stat = pickAxisStat(axis, reputationStats);
   const recs = (axis.recommendations ?? []).slice(0, 2);
   const partial = axis.partial && axis.partial_reason
     ? `<p class="axis-partial">*Não consegui ler ${escapeHtml(axis.partial_reason)}.*</p>` : "";
@@ -314,13 +315,68 @@ function renderAxisScene(axis) {
     ${partial}`;
 }
 
-function pickAxisStat(axis) {
+function pickAxisStat(axis, reputationStats) {
+  if (axis.name === "Reputação") {
+    const rating = reputationStats?.rating;
+    const reviews = reputationStats?.reviews_count;
+    if (typeof rating === "number" && Number.isFinite(rating)) {
+      const ratingStr = rating.toFixed(1).replace(".", ",");
+      const label = typeof reviews === "number" && reviews > 0
+        ? `estrelas no Google · ${formatNumber(reviews)} ${reviews === 1 ? "avaliação" : "avaliações"}`
+        : "estrelas no Google";
+      return { value: `${ratingStr} / 5`, label };
+    }
+    if (typeof reviews === "number" && reviews > 0) {
+      return { value: formatNumber(reviews), label: reviews === 1 ? "avaliação no Google" : "avaliações no Google" };
+    }
+    const n = axis.evidence_count;
+    if (typeof n === "number" && n > 0) {
+      return { value: formatNumber(n), label: n === 1 ? "sinal de reputação" : "sinais de reputação" };
+    }
+    return null;
+  }
   const n = axis.evidence_count;
   if (typeof n !== "number" || n <= 0) return null;
   if (axis.name === "Visibilidade") return { value: formatNumber(n), label: n === 1 ? "canal onde apareces" : "canais onde apareces" };
-  if (axis.name === "Reputação")    return { value: formatNumber(n), label: n === 1 ? "review no Google" : "reviews no Google" };
   if (axis.name === "Consistência") return { value: formatNumber(n), label: "sinais cruzados" };
   return { value: formatNumber(n), label: "sinais" };
+}
+
+function extractReputationStats(progress, result) {
+  let rating;
+  let reviews_count;
+
+  // Prefer structured progress data when available (live flow).
+  for (const p of progress ?? []) {
+    const d = p?.data;
+    if (!d) continue;
+    if (typeof d.rating === "number" && Number.isFinite(d.rating)) rating = d.rating;
+    if (typeof d.reviews_count === "number" && Number.isFinite(d.reviews_count)) reviews_count = d.reviews_count;
+  }
+
+  // Fallback: parse from the Reputação axis summary text (share-landing path,
+  // where progress is not available). Accepts "4.7 estrelas", "4,7 estrelas",
+  // "222 avaliações", "1 522 reviews", etc.
+  if (rating === undefined || reviews_count === undefined) {
+    const axis = (result?.axes ?? []).find((a) => a?.name === "Reputação");
+    const text = axis?.summary ?? "";
+    if (rating === undefined) {
+      const m = text.match(/(\d+[.,]\d+)\s*estrelas/i);
+      if (m) {
+        const n = Number(m[1].replace(",", "."));
+        if (Number.isFinite(n) && n > 0 && n <= 5) rating = n;
+      }
+    }
+    if (reviews_count === undefined) {
+      const m = text.match(/([\d\s\u00a0]+)\s*(?:avalia(?:ç|c)[õo]es|avalia(?:ç|c)[ãa]o|reviews?)/i);
+      if (m) {
+        const n = Number(m[1].replace(/[\s\u00a0]/g, ""));
+        if (Number.isFinite(n) && n > 0) reviews_count = n;
+      }
+    }
+  }
+
+  return { rating, reviews_count };
 }
 
 function collectSources(result, hinted) {

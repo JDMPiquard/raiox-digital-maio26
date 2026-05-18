@@ -84,7 +84,7 @@ function bootLive(sid) {
       .then(() => dispatchResultEmail(sid, { shopName: result?.shop?.name ?? shopName ?? undefined }))
       .catch(() => {});
     show(viewReveal);
-    startReveal({ result, sid, distinctSources: distinct, shareLanding: false });
+    startReveal({ result, sid, distinctSources: distinct, shareLanding: false, progress });
   }
 
   function onError() {

@@ -298,13 +298,64 @@
   display: flex; align-items: center; justify-content: center;
   opacity: 0.35;
   transition: opacity 500ms ease, background 500ms ease, border-color 500ms ease;
+  animation: tile-breathe 3.6s ease-in-out infinite;
+  animation-delay: var(--tile-delay, 0s);
+  will-change: transform, opacity;
 }
 .tile.lit {
   opacity: 1;
   background: var(--surface);
   border-color: var(--cobalt);
+  animation: tile-glow 2.4s ease-in-out infinite;
+  animation-delay: var(--tile-delay, 0s);
 }
-.tile svg { width: 70%; height: 70%; display: block; }
+.tile.pop {
+  animation: tile-pop 600ms cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+}
+.tile svg { width: 70%; height: 70%; display: block; transition: transform 500ms ease; }
+.tile.lit svg { transform: scale(1.04); }
+
+@keyframes tile-breathe {
+  0%, 100% { opacity: 0.32; transform: scale(1); }
+  50%      { opacity: 0.5;  transform: scale(1.015); }
+}
+@keyframes tile-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(29, 63, 122, 0); transform: scale(1); }
+  50%      { box-shadow: 0 0 0 2px rgba(29, 63, 122, 0.18); transform: scale(1.02); }
+}
+@keyframes tile-pop {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(198, 99, 57, 0.55); }
+  40%  { transform: scale(1.12); box-shadow: 0 0 0 8px rgba(198, 99, 57, 0.15); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(198, 99, 57, 0); }
+}
+
+/* Activity line — secondary "what's happening now" stream */
+.activity-line {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text);
+  font-style: italic;
+  margin: 2px 0 0;
+  min-height: 1.4em;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.activity-line.in  { opacity: 0.9; transform: translateY(0); }
+.activity-line.out { opacity: 0;   transform: translateY(-4px); }
+.activity-line.is-reduced {
+  transform: none;
+  transition: opacity 200ms ease;
+}
+.activity-line.is-reduced.in,
+.activity-line.is-reduced.out { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .tile.lit { animation: none !important; }
+  .tile.pop { animation: none !important; }
+  .activity-line { transform: none !important; transition: opacity 200ms ease; }
+}
 
 /* Featured "big number" bursts under the grid */
 .fact-stack {

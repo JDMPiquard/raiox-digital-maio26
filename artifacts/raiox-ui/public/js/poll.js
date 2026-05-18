@@ -13,10 +13,12 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
   const line = document.getElementById("progress-line");
   const netLine = document.getElementById("net-line");
   const gridHost = document.getElementById("tile-grid");
+  const activityEl = document.getElementById("activity-line");
 
   if (shopName) shopPin.textContent = shopName;
 
   const grid = buildTileGrid(gridHost);
+  const activity = startActivityCycler(activityEl);
 
   const start = Date.now();
   let backoff = 0;
@@ -85,6 +87,7 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
     if (stopped) return;
     if (Date.now() - start > 180_000 && !timedOut) {
       timedOut = true;
+      activity.stop();
       onTimeout?.();
     }
     try {
@@ -98,16 +101,19 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
         grid.lightUp(9);
         statusEl.textContent = "Painel completo";
         stopped = true;
+        activity.stop();
         onDone?.(status.result, status.progress);
         return;
       }
       if (status.state === "error") {
         stopped = true;
+        activity.stop();
         onError?.(status.error);
         return;
       }
       if (status.state === "expired") {
         stopped = true;
+        activity.stop();
         onExpired?.();
         return;
       }
@@ -124,8 +130,87 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
   setTimeout(tick, 200);
 
   return {
-    stop() { stopped = true; },
-    pokeNow() { tick(); },
+    stop() { stopped = true; activity.stop(); },
+    pokeNow() {
+      if (timedOut) {
+        timedOut = false;
+        activity.restart?.();
+      }
+      tick();
+    },
+  };
+}
+
+const ACTIVITY_MESSAGES = [
+  "A ouvir o que dizem de ti…",
+  "A medir a tua pegada no Instagram…",
+  "A contar estrelas no Google…",
+  "A folhear o teu site…",
+  "A espreitar a tua página no Facebook…",
+  "A ler comentários de clientes…",
+  "A juntar os pedaços do puzzle…",
+  "A procurar fotos da tua loja…",
+  "A consultar mapas e moradas…",
+  "A comparar com lojas da tua rua…",
+  "A confirmar horários de abertura…",
+  "A apanhar menções recentes…",
+];
+
+function startActivityCycler(el) {
+  if (!el) return { stop() {}, restart() {} };
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  el.classList.add("activity-line");
+  if (reduce) el.classList.add("is-reduced");
+
+  const pool = ACTIVITY_MESSAGES.slice();
+  let idx = Math.floor(Math.random() * pool.length);
+  let timer = 0;
+  let stopped = false;
+
+  function show(msg) {
+    if (reduce) {
+      el.style.opacity = "0";
+      setTimeout(() => {
+        if (stopped) return;
+        el.textContent = msg;
+        el.style.opacity = "1";
+      }, 180);
+    } else {
+      el.classList.remove("in");
+      el.classList.add("out");
+      setTimeout(() => {
+        if (stopped) return;
+        el.textContent = msg;
+        el.classList.remove("out");
+        el.classList.add("in");
+      }, 220);
+    }
+  }
+
+  function next() {
+    if (stopped) return;
+    idx = (idx + 1) % pool.length;
+    show(pool[idx]);
+    timer = setTimeout(next, 2600);
+  }
+
+  function begin() {
+    stopped = false;
+    el.textContent = pool[idx];
+    el.classList.add("in");
+    clearTimeout(timer);
+    timer = setTimeout(next, 2600);
+  }
+
+  begin();
+
+  return {
+    stop() {
+      stopped = true;
+      clearTimeout(timer);
+      el.classList.remove("in");
+    },
+    restart() { begin(); },
   };
 }
 
