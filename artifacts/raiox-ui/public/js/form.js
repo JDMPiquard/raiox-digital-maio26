@@ -17,6 +17,9 @@ let manualMode = false;    // true → "Não estás no Google Maps?" path
 let confirming = false;    // showing the confirm card?
 let lastQuery = "";
 
+// Clear any stale mock flag from previous sessions so live autocomplete works.
+try { window.localStorage.removeItem("raiox_mock"); } catch {}
+
 function setExpanded(open) {
   combo.setAttribute("aria-expanded", open ? "true" : "false");
   list.hidden = !open;
@@ -254,13 +257,11 @@ form.addEventListener("submit", async (e) => {
 
   try {
     const isDemo = selected?.__demo === true;
-    // Demo chips short-circuit to mock so the experience always completes
-    // even when the live API isn't seeded with the fake place_id.
-    if (isDemo) {
-      try { window.localStorage.setItem("raiox_mock", "1"); } catch {}
-    }
     const { sid } = await startDiagnostic(body);
     try { sessionStorage.setItem(`raiox:${sid}:shop`, body.shop_name); } catch {}
+    // Demo chips carry mock mode forward via the URL only — never via
+    // localStorage, otherwise the autocomplete on the landing page would
+    // stay locked to the three fixture shops on the next visit.
     const qs = isDemo ? `&mock=1` : "";
     window.location.href = `/result.html?sid=${encodeURIComponent(sid)}${qs}`;
   } catch {
