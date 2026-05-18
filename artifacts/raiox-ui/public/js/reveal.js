@@ -17,6 +17,7 @@ export function startReveal({ result, sid, distinctSources, shareLanding = false
   const host = document.getElementById("scene-host");
   const dotsEl = document.getElementById("reveal-dots");
   const skipBtn = document.getElementById("scene-skip");
+  const backBtn = document.getElementById("scene-back");
   host.innerHTML = "";
 
   const scenes = buildScenes({ result, sid, distinctSources, shareLanding });
@@ -41,10 +42,11 @@ export function startReveal({ result, sid, distinctSources, shareLanding = false
   let current = -1;
   let timer = 0;
 
-  function setCurrent(i) {
+  function setCurrent(i, { replay = false } = {}) {
     if (i >= scenes.length) i = scenes.length - 1;
-    if (i === current) return;
-    if (current >= 0) host.children[current].classList.remove("active");
+    if (i < 0) i = 0;
+    if (i === current && !replay) return;
+    if (current >= 0 && current !== i) host.children[current].classList.remove("active");
     current = i;
     const el = host.children[current];
     el.classList.add("active");
@@ -53,6 +55,9 @@ export function startReveal({ result, sid, distinctSources, shareLanding = false
       d.classList.toggle("current", idx === current);
     });
     skipBtn.hidden = current === scenes.length - 1;
+    backBtn.hidden = current === 0;
+    // Replay any onEnter animations (count-ups, staggered tiles, etc.) when
+    // re-entering a scene via back-navigation so it doesn't look frozen.
     scenes[current].onEnter?.(el);
     scheduleAuto();
   }
@@ -64,17 +69,28 @@ export function startReveal({ result, sid, distinctSources, shareLanding = false
   }
 
   function advance() { setCurrent(current + 1); }
+  function rewind() { setCurrent(current - 1, { replay: true }); }
 
   function onTap(e) {
     if (e.target.closest("button, a")) return;
-    if (current < scenes.length - 1) advance();
+    // Instagram-stories tap zones: left third → back, rest → forward.
+    const rect = host.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x < rect.width / 3) {
+      if (current > 0) rewind();
+    } else if (current < scenes.length - 1) {
+      advance();
+    }
   }
 
   host.addEventListener("click", onTap);
   skipBtn.addEventListener("click", advance);
+  backBtn.addEventListener("click", rewind);
   document.addEventListener("keydown", (e) => {
-    if (e.key === " " || e.key === "Enter") {
+    if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") {
       if (current < scenes.length - 1) { advance(); e.preventDefault(); }
+    } else if (e.key === "ArrowLeft") {
+      if (current > 0) { rewind(); e.preventDefault(); }
     }
   });
 

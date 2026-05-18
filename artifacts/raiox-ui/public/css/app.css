@@ -621,10 +621,10 @@
 }
 
 /* Scene controls */
-.scene-skip {
+.scene-skip,
+.scene-back {
   position: absolute;
   bottom: 16px;
-  right: 16px;
   background: transparent;
   border: 0;
   color: var(--muted);
@@ -632,8 +632,12 @@
   font-family: var(--font-mono); font-size: 11px;
   letter-spacing: 1.5px; text-transform: uppercase;
   z-index: 3;
+  cursor: pointer;
 }
-.scene-skip:hover { color: var(--cobalt); }
+.scene-skip { right: 16px; }
+.scene-back { left: 16px; }
+.scene-skip:hover,
+.scene-back:hover { color: var(--cobalt); }
 
 .restart-link {
   position: absolute;
