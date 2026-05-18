@@ -244,6 +244,9 @@
 .page-result { background: var(--bg); }
 
 .view { min-height: 100dvh; display: flex; flex-direction: column; }
+/* The `display: flex` above otherwise overrides the browser default
+   for [hidden], causing all views to render simultaneously. */
+.view[hidden] { display: none !important; }
 
 /* ---------- Phase 3 — WAITING (3×3 tile grid)
    Locked to a single viewport. No scroll. ---------- */
@@ -425,10 +428,8 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: none;
+  overflow: hidden;
 }
-.scene-inner::-webkit-scrollbar { display: none; }
 
 /* Scene — Hero (with corner tile motif) */
 .scene--hero { justify-content: center; position: relative; }
