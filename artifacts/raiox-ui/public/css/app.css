@@ -434,6 +434,10 @@
 /* Scene — Hero (with corner tile motif) */
 .scene--hero { justify-content: center; position: relative; }
 .scene--hero .scene-prefix { margin: 0 0 var(--space-sm); }
+.hero-cta {
+  margin-top: var(--space-lg);
+  align-self: flex-start;
+}
 .scene-prefix {
   font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px;
   text-transform: uppercase; color: var(--cobalt); font-weight: 700;

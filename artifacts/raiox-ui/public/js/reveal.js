@@ -108,13 +108,21 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
   scenes.push({
     ariaLabel: "Cena 1: O teu raio-x digital",
     modifier: "scene--hero",
-    dwellMs: 4200,
+    dwellMs: 0,
     html: `
       <p class="scene-prefix">O Raio-X Digital de</p>
       <h1 class="scene-shop-name">${escapeHtml(shopName)}</h1>
       <span class="scene-accent-line" aria-hidden="true"></span>
       ${shop.address ? `<p class="scene-shop-addr">${escapeHtml(shop.address)}</p>` : ""}
-      <p class="scene-foot">· AHI ·</p>`,
+      <p class="scene-foot">· AHI ·</p>
+      <button type="button" class="btn hero-cta" data-action="advance">Ver resultados →</button>`,
+    onEnter(el) {
+      const btn = el.querySelector(".hero-cta");
+      if (btn && !btn.dataset.bound) {
+        btn.dataset.bound = "1";
+        btn.addEventListener("click", () => document.getElementById("scene-skip").click());
+      }
+    },
   });
 
   // 2 — Discovery: "Encontrei-te em N canais" with 3×3 tile cells per source
