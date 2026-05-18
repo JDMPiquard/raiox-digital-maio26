@@ -212,6 +212,28 @@ function enterManualMode() {
   });
 }
 
+/* ---------- Demo chips (Casa Januário shortcut) ---------- */
+
+const chipHost = document.getElementById("demo-chips");
+if (chipHost) {
+  chipHost.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    const p = {
+      place_id: chip.dataset.pid || undefined,
+      name: chip.dataset.name || chip.textContent.trim(),
+      address: chip.dataset.addr || "",
+    };
+    if (manualMode) exitManualMode();
+    predictions = [p];
+    selected = p;
+    input.value = p.name;
+    setExpanded(false);
+    showConfirm(p);
+    submit.focus();
+  });
+}
+
 /* ---------- Submit ---------- */
 
 form.addEventListener("submit", async (e) => {

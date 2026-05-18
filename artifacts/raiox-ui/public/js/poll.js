@@ -1,74 +1,81 @@
-// Phase 3 — polling + fact-card stack + progress bar.
+// Phase 3 — polling + 3×3 tile grid + featured fact + progress bar.
 // Resolves with the final DiagnosticResult when state === "done".
 
 import { getStatus } from "/js/api.js";
 import { pickFact, stagePercent, countUp, formatNumber, escapeHtml } from "/js/util.js";
-
-const MAX_VISIBLE_CARDS = 5;
+import { buildTileGrid } from "/js/tiles.js";
 
 export function startPolling({ sid, shopName, onDone, onError, onExpired, onTimeout }) {
   const shopPin = document.getElementById("wait-shop-name");
+  const statusEl = document.getElementById("result-status");
   const bar = document.getElementById("progress-bar");
   const stack = document.getElementById("fact-stack");
   const line = document.getElementById("progress-line");
   const netLine = document.getElementById("net-line");
+  const gridHost = document.getElementById("tile-grid");
 
   if (shopName) shopPin.textContent = shopName;
 
+  const grid = buildTileGrid(gridHost);
+
   const start = Date.now();
-  let backoff = 0;       // current network-failure backoff (ms); 0 when healthy
-  let renderedCount = 0; // how many progress entries we've already painted
+  let backoff = 0;
+  let renderedCount = 0;
   let timedOut = false;
   let stopped = false;
+  let currentCard = null;
 
   function setBar(pct) { bar.style.width = `${Math.max(6, Math.min(100, pct))}%`; }
 
-  function pushFactCard(label, number) {
+  function showFeaturedFact(label, value) {
+    // Replace the single featured card with a new one; tile grid is the cumulative view.
+    if (currentCard) currentCard.remove();
     const card = document.createElement("div");
     card.className = "fact-card";
-    card.setAttribute("aria-label", `${number} ${label}`);
     const num = document.createElement("div");
     num.className = "fact-number";
-    num.textContent = "0";
+    const isNumeric = typeof value === "number" && Number.isFinite(value);
+    if (!isNumeric) {
+      num.classList.add("is-string");
+      num.textContent = String(value);
+    } else {
+      num.textContent = "0";
+    }
     const lab = document.createElement("div");
     lab.className = "fact-label";
     lab.textContent = label;
     card.append(num, lab);
     stack.appendChild(card);
     requestAnimationFrame(() => card.classList.add("in"));
-    if (typeof number === "number") countUp(num, number, 1100);
-    else num.textContent = String(number);
-
-    // Fade out oldest beyond MAX_VISIBLE_CARDS.
-    const visible = stack.querySelectorAll(".fact-card.in:not(.out)");
-    if (visible.length > MAX_VISIBLE_CARDS) {
-      visible[0].classList.add("out");
-    }
+    if (isNumeric) countUp(num, value, 1100);
+    currentCard = card;
   }
 
   function paintProgress(progress) {
     if (!Array.isArray(progress)) return;
-    // Latest line.
+
     const last = progress[progress.length - 1];
     if (last?.text) line.textContent = last.text;
-    // Bar from latest known stage.
+
     for (let i = progress.length - 1; i >= 0; i--) {
       if (progress[i].stage) { setBar(stagePercent(progress[i].stage)); break; }
     }
-    // New cards for any new entries with `data` we can summarise.
+
+    grid.lightUp(progress.length);
+
+    if (progress.length > 0) {
+      statusEl.textContent = "A descobrir-te peça a peça…";
+    }
+
     for (let i = renderedCount; i < progress.length; i++) {
-      const p = progress[i];
-      // Pin shop name from identifying message if we still don't have one.
-      if (!shopName && p.text && shopPin.textContent === "A tua loja") {
-        // Leave default; the result page will repin from the result payload.
-      }
-      const fact = pickFact(p.data);
+      const fact = pickFact(progress[i].data);
       if (fact) {
-        const numericMatch = typeof fact.number === "string"
-          ? Number(fact.number.replace(/[^\d-]/g, ""))
+        const num = typeof fact.number === "string"
+          ? (Number.isFinite(Number(fact.number.replace(/[^\d-]/g, ""))) && /^\d/.test(fact.number)
+              ? Number(fact.number.replace(/[^\d-]/g, ""))
+              : fact.number)
           : fact.number;
-        pushFactCard(fact.label,
-          Number.isFinite(numericMatch) && /^\d/.test(String(fact.number)) ? numericMatch : fact.number);
+        showFeaturedFact(fact.label, num);
       }
     }
     renderedCount = progress.length;
@@ -79,7 +86,6 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
     if (Date.now() - start > 180_000 && !timedOut) {
       timedOut = true;
       onTimeout?.();
-      // Still keep polling in the background so [Ver agora] can resolve fast.
     }
     try {
       const status = await getStatus(sid);
@@ -89,6 +95,8 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
 
       if (status.state === "done") {
         setBar(100);
+        grid.lightUp(9);
+        statusEl.textContent = "Painel completo";
         stopped = true;
         onDone?.(status.result, status.progress);
         return;
@@ -113,7 +121,6 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
     setTimeout(tick, delay);
   }
 
-  // Quick first poll.
   setTimeout(tick, 200);
 
   return {
@@ -122,13 +129,11 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
   };
 }
 
-// Tiny helper used by the result controller.
 export function sumDistinctSources(progress) {
   const set = new Set();
   for (const p of progress ?? []) {
     if (p?.data?.source_found) set.add(p.data.source_found);
   }
-  // Add the canonical channels that produced numbers.
   for (const p of progress ?? []) {
     const d = p?.data;
     if (!d) continue;
@@ -140,5 +145,4 @@ export function sumDistinctSources(progress) {
   return set;
 }
 
-// Re-export helpers used by reveal.js that shouldn't pull a separate file.
 export { formatNumber, escapeHtml };

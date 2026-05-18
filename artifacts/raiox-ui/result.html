@@ -6,26 +6,31 @@
     <title>Raio-X Digital — AHI</title>
     <meta name="description" content="O teu raio-x digital — uma leitura curta da tua presença online." />
     <meta name="robots" content="noindex, nofollow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/app.css" />
   </head>
   <body class="page-result">
-    <!-- WAITING VIEW -->
+    <!-- WAITING VIEW — 3×3 tile grid lights up as evidence arrives -->
     <section id="view-waiting" class="view view-waiting" aria-live="polite" aria-busy="true">
       <header class="result-top">
         <span id="wait-shop-name" class="shop-pin">A tua loja</span>
       </header>
+      <p id="result-status" class="result-status">A descobrir-te peça a peça…</p>
+
+      <div id="tile-grid" class="tile-grid" aria-hidden="true"></div>
+
+      <div id="fact-stack" class="fact-stack" aria-live="polite"></div>
 
       <div class="progress-track" aria-hidden="true">
         <div id="progress-bar" class="progress-bar" style="width:6%"></div>
       </div>
-
-      <div id="fact-stack" class="fact-stack"></div>
-
       <p id="progress-line" class="progress-line">A começar…</p>
       <p id="net-line" class="net-line" hidden>Sem rede — vou tentar de novo.</p>
 
-      <footer class="ahi-footer">Já ajudámos 200+ comerciantes do Porto este ano. — AHI</footer>
+      <footer class="ahi-footer">— AHI · Fórum do Comércio do Porto</footer>
     </section>
 
     <!-- ERROR / TIMEOUT VIEW -->
@@ -33,7 +38,7 @@
       <div class="error-box">
         <p id="error-message" class="error-message">Algo correu mal — tenta de novo daqui a uns segundos.</p>
         <div class="error-actions">
-          <button id="error-retry" type="button" class="btn btn-primary" hidden>Recomeçar</button>
+          <button id="error-retry" type="button" class="btn" hidden>Recomeçar</button>
         </div>
       </div>
     </section>

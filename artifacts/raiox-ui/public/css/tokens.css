@@ -1,26 +1,35 @@
 :root {
-  /* Color */
-  --bg:        #faf9f7;
-  --surface:   #f7f6f3;
-  --text:      #37352f;
-  --muted:     #5c5b57;
-  --border:    #e9e9e7;
+  /* Color — Azulejo direction (Porto tile · cobalt + terracotta) */
+  --bg:        #f5eedf;   /* paper / cream */
+  --surface:   #ffffff;   /* card surface */
+  --text:      #0e1d33;   /* ink */
+  --muted:     #5d6577;
+  --border:    #d8cdb5;   /* warm rule */
+  --rule:      #d8cdb5;
 
-  /* Axis accents — muted neutrals only, NEVER traffic-light */
-  --accent-vis: #245d80;
-  --accent-rep: #37352f;
-  --accent-con: #5c5b57;
+  /* Brand */
+  --cobalt:        #1d3f7a;
+  --cobalt-deep:   #0b224a;
+  --cobalt-soft:   #d6e0f1;
+  --terracotta:    #c66339;
+  --olive:         #3a5c3a;
+
+  /* Axis accents — Azulejo: cobalt · terracotta · olive (never traffic-light) */
+  --accent-vis: var(--cobalt);
+  --accent-rep: var(--terracotta);
+  --accent-con: var(--olive);
 
   /* Type */
-  --font-serif: Georgia, "Times New Roman", serif;
-  --font-sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+  --font-sans:  -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Type scale */
   --text-body:    18px;
   --text-summary: 20px;
   --text-h2:      22px;
   --text-h1:      26px;
-  --text-hero:    36px;
+  --text-hero:    38px;
   --text-mega:    64px;
 
   /* Spacing */
@@ -35,7 +44,7 @@
 
   /* Layout */
   --max-width: 480px;
-  --radius-card: 12px;
+  --radius-card: 4px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -52,7 +61,13 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
-h1, h2, .hero { font-family: var(--font-serif); font-weight: 600; line-height: 1.2; }
+h1, h2, .hero {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
 
 button, [role="button"] {
   min-height: var(--target-min);
@@ -60,19 +75,36 @@ button, [role="button"] {
   font-size: var(--text-body);
   font-family: inherit;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 input, button { font: inherit; color: inherit; }
 input { font-size: var(--text-body); }
 
-a { color: var(--accent-vis); text-decoration: underline; text-underline-offset: 2px; }
-a:hover { text-decoration: none; }
+a {
+  color: var(--cobalt);
+  text-decoration: none;
+  border-bottom: 1px solid var(--cobalt);
+  padding-bottom: 1px;
+}
+a:hover { color: var(--cobalt-deep); border-bottom-color: var(--cobalt-deep); }
 
 *:focus-visible {
-  outline: 3px solid var(--accent-vis);
+  outline: 2px solid var(--cobalt);
   outline-offset: 2px;
-  border-radius: 2px;
 }
+
+/* Mono eyebrow utility — Azulejo's signature "Capítulo I" / "Eixo 1 de 3" tag */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cobalt);
+  font-weight: 700;
+}
+.eyebrow--muted { color: var(--muted); }
+.eyebrow--terracotta { color: var(--terracotta); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

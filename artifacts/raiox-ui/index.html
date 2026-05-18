@@ -9,18 +9,24 @@
     <meta property="og:title" content="Raio-X Digital — AHI" />
     <meta property="og:description" content="Vê o teu raio-x digital em 90 segundos." />
     <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/app.css" />
   </head>
   <body class="page-scan">
     <header class="brand-bar">
+      <span class="brand-mark" aria-hidden="true"></span>
       <span class="wordmark">AHI</span>
       <span class="brand-tag">Fórum do Comércio</span>
     </header>
 
     <main class="container">
-      <h1 class="hero hero-h1">Vê o teu raio-x digital em 90 segundos</h1>
-      <p class="hero-sub">Uma leitura curta da tua presença online — Google, Instagram, web. Em 90 segundos, no telemóvel.</p>
+      <div class="scan-eyebrow eyebrow">Raio-X Digital</div>
+      <h1 class="hero hero-h1">Vê o teu <i>raio-x</i> digital em 90 segundos.</h1>
+      <p class="hero-sub">Uma leitura curta da tua presença online — Google, Instagram, web. No telemóvel, sem login.</p>
+      <span class="hero-rule" aria-hidden="true"></span>
 
       <form id="scan-form" class="scan-form" autocomplete="off" novalidate>
         <label for="shop-input" class="field-label">A tua loja</label>
@@ -33,7 +39,7 @@
             autocomplete="off"
             autocapitalize="words"
             spellcheck="false"
-            placeholder="Começa a escrever o nome da loja…"
+            placeholder="Começa a escrever…"
             aria-autocomplete="list"
             aria-controls="shop-list"
             aria-activedescendant=""
@@ -42,9 +48,16 @@
         </div>
         <p id="form-error" class="field-error" hidden></p>
 
-        <button id="scan-submit" type="submit" class="btn btn-primary" disabled aria-disabled="true">
+        <button id="scan-submit" type="submit" class="btn" disabled aria-disabled="true">
           Começar
         </button>
+
+        <div class="demo-chips" id="demo-chips" aria-label="Demonstração">
+          <span class="field-label">Demo — toca para começar</span>
+          <button type="button" class="chip" data-name="Casa Januário" data-pid="ChIJSTUB_casa_januario" data-addr="Rua Cedofeita 348, 4050-174 Porto">Casa Januário</button>
+          <button type="button" class="chip" data-name="Casa Januária" data-pid="ChIJSTUB_casa_januaria" data-addr="Rua do Bonfim, Porto">Casa Januária</button>
+          <button type="button" class="chip" data-name="Pinguim Café" data-pid="ChIJSTUB_pinguim" data-addr="Rua Galeria de Paris, Sé, Porto">Pinguim Café</button>
+        </div>
 
         <p class="microcopy">
           Lemos só fontes públicas (Google, Instagram, web). Não guardamos dados pessoais.
