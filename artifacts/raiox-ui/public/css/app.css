@@ -663,3 +663,72 @@
 /* ---------- Static prose ---------- */
 .static-prose p { font-size: 16px; margin: var(--space-md) 0; line-height: 1.6; }
 .static-h2 { font-size: 22px; margin: var(--space-lg) 0 var(--space-sm); font-family: var(--font-serif); letter-spacing: -0.02em; }
+
+/* ---------- Email capture (waiting + share) ---------- */
+.email-capture {
+  margin: var(--space-md) 0 0;
+  padding: var(--space-md);
+  border: 1px solid var(--rule);
+  background: var(--surface);
+}
+.email-capture-label {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 var(--space-xs, 8px);
+}
+.email-capture-row {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.email-capture-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  background: var(--bg, #fffaf2);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  border-radius: 0;
+}
+.email-capture-input:focus {
+  outline: none;
+  border-color: var(--cobalt);
+  box-shadow: 0 0 0 1px var(--cobalt);
+}
+.email-capture-input[aria-invalid="true"] {
+  border-color: var(--terracotta);
+  box-shadow: 0 0 0 1px var(--terracotta);
+}
+.email-capture-submit { flex: 0 0 auto; }
+.email-capture-msg {
+  margin: 8px 0 0;
+  font-size: 13px;
+  min-height: 1.2em;
+  color: var(--muted);
+}
+.email-capture-msg.is-ok { color: var(--cobalt); }
+.email-capture-msg.is-error { color: var(--terracotta); }
+.email-capture-foot {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.share-email-capture { margin-top: var(--space-sm); }
+.email-edit-link {
+  display: inline-block;
+  margin-top: 6px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--cobalt, #2a5b8c);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.email-edit-link:hover { opacity: 0.8; }

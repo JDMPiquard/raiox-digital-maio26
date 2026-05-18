@@ -4,6 +4,7 @@
 import { countUp, formatNumber, escapeHtml, LAB_TITLES } from "/js/util.js";
 import { shareWhatsappUrl, icsUrl, publicShareUrl, getShareUrl } from "/js/api.js";
 import { tileMotif } from "/js/tiles.js";
+import { bindEmailForm } from "/js/email-capture.js";
 
 // Axis colours — cobalt / terracotta / olive, in fixed order matching the brief.
 const AXIS_COLOR = {
@@ -225,6 +226,7 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
 
   // 8 — Share
   const shareUrl = publicShareUrl(sid);
+  const revealShopName = result?.shop?.name ?? "";
   scenes.push({
     ariaLabel: "Cena: Partilha",
     dwellMs: 0,
@@ -235,7 +237,17 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
       <div class="share-actions">
         <a class="btn" id="share-wa" href="${shareWhatsappUrl(shareUrl)}" target="_blank" rel="noopener">Partilhar no WhatsApp</a>
         <button type="button" class="btn btn-secondary" id="share-copy">Copiar link</button>
+        <button type="button" class="btn btn-secondary" id="share-email-toggle" aria-expanded="false" aria-controls="share-email-form">Receber resultado por email</button>
       </div>
+      <form id="share-email-form" class="email-capture share-email-capture" novalidate hidden>
+        <label class="email-capture-label" for="share-email-input">Manda-me uma cópia para o email.</label>
+        <div class="email-capture-row">
+          <input id="share-email-input" class="email-capture-input" type="email" inputmode="email" autocomplete="email" placeholder="o-teu-email@exemplo.pt" required />
+          <button id="share-email-submit" class="btn btn-secondary email-capture-submit" type="submit">Enviar</button>
+        </div>
+        <p id="share-email-msg" class="email-capture-msg" aria-live="polite"></p>
+        <p class="email-capture-foot">Só usamos para te enviar este resultado.</p>
+      </form>
       <p class="share-foot">Já ajudámos 200+ comerciantes do Porto este ano. — AHI</p>`,
     onEnter(el) {
       const wa = el.querySelector("#share-wa");
@@ -254,6 +266,26 @@ function buildScenes({ result, sid, distinctSources, shareLanding }) {
           try { document.execCommand("copy"); btn.textContent = "Copiado ✓"; setTimeout(() => btn.textContent = "Copiar link", 2000); } catch {}
           ta.remove();
         }
+      });
+
+      const toggle = el.querySelector("#share-email-toggle");
+      const form = el.querySelector("#share-email-form");
+      const input = el.querySelector("#share-email-input");
+      const submit = el.querySelector("#share-email-submit");
+      const msg = el.querySelector("#share-email-msg");
+      toggle.addEventListener("click", () => {
+        const open = !form.hidden;
+        form.hidden = open;
+        toggle.setAttribute("aria-expanded", String(!open));
+        if (!open) {
+          setTimeout(() => input.focus(), 0);
+        }
+      });
+      bindEmailForm({
+        form, input, submitBtn: submit, msg,
+        sid,
+        shopName: revealShopName,
+        mode: "immediate",
       });
     },
   });

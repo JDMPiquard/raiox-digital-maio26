@@ -1,11 +1,21 @@
 // Typed API client. Falls back to local mock data when the live endpoint
 // returns 501 (not yet implemented) or when ?mock=1 is set.
 
-import { API_BASE, mockMode } from "/js/util.js";
+import { API_BASE, RESULT_API_BASE, mockMode } from "/js/util.js";
 import { MOCK_PREDICTIONS, mockStartDiagnostic, mockStatus, mockResult } from "/js/mock.js";
 
 async function jsonFetch(path, init) {
   const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "accept": "application/json", ...(init?.headers ?? {}) },
+    ...init,
+  });
+  return res;
+}
+
+// Used only for the Task #10 endpoints which live on our own api-server
+// (RESULT_API_BASE), not the workers.dev diagnostic backend (API_BASE).
+async function resultFetch(path, init) {
+  const res = await fetch(`${RESULT_API_BASE}${path}`, {
     headers: { "accept": "application/json", ...(init?.headers ?? {}) },
     ...init,
   });
@@ -124,6 +134,82 @@ export function publicShareUrl(sid) {
     if (here && !/raiox\.j24d\.com$/.test(new URL(here).hostname)) origin = here;
   } catch { /* keep prod origin */ }
   return `${origin}/r/${encodeURIComponent(sid)}`;
+}
+
+// --- Result email capture (Task #10) ---------------------------------------
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function isValidEmail(value) {
+  return typeof value === "string" && EMAIL_RE.test(value.trim());
+}
+
+// POST /api/result/:sid/email — stores the email and either sends the result
+// link via Resend (immediate=true) or queues it until the result is ready.
+// Returns { ok, sent?, queued? } on success, throws on network/HTTP errors.
+export async function submitResultEmail(sid, email, { immediate = false, shopName } = {}) {
+  if (!sid) throw new Error("missing_sid");
+  if (!isValidEmail(email)) throw new Error("invalid_email");
+  const res = await resultFetch(`/api/result/${encodeURIComponent(sid)}/email`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      email: String(email).trim(),
+      immediate: !!immediate,
+      ...(shopName ? { shopName } : {}),
+    }),
+  });
+  if (!res.ok) throw new Error(`email ${res.status}`);
+  return await res.json();
+}
+
+// POST /api/result/:sid/email/dispatch — flush any queued email after the
+// diagnostic completes. Safe to call even when no email was captured.
+export async function dispatchResultEmail(sid, { shopName } = {}) {
+  if (!sid) return { ok: false };
+  try {
+    const res = await resultFetch(`/api/result/${encodeURIComponent(sid)}/email/dispatch`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(shopName ? { shopName } : {}),
+    });
+    if (!res.ok) return { ok: false };
+    return await res.json();
+  } catch {
+    return { ok: false };
+  }
+}
+
+// --- Cached result storage (recover instantly when shared) ----------------
+
+// POST /api/result/:sid/cache — persists the full diagnostic payload so the
+// share link can be re-served with no diagnostic re-run.
+export async function cacheResult(sid, payload, { shopName } = {}) {
+  if (!sid || !payload) return { ok: false };
+  try {
+    const res = await resultFetch(`/api/result/${encodeURIComponent(sid)}/cache`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ payload, ...(shopName ? { shopName } : {}) }),
+    });
+    if (!res.ok) return { ok: false };
+    return await res.json();
+  } catch {
+    return { ok: false };
+  }
+}
+
+// GET /api/result/:sid/cache — returns { sid, shopName, payload, cachedAt }
+// or null when the sid is unknown / cache lookup fails.
+export async function getCachedResult(sid) {
+  if (!sid) return null;
+  try {
+    const res = await resultFetch(`/api/result/${encodeURIComponent(sid)}/cache`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 function newSid() {

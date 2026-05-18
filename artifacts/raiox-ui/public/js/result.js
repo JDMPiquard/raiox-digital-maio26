@@ -2,6 +2,8 @@
 
 import { startPolling, sumDistinctSources } from "/js/poll.js";
 import { startReveal } from "/js/reveal.js";
+import { cacheResult, dispatchResultEmail, getCachedResult } from "/js/api.js";
+import { bindEmailForm } from "/js/email-capture.js";
 
 const viewWaiting = document.getElementById("view-waiting");
 const viewError   = document.getElementById("view-error");
@@ -42,15 +44,45 @@ function bootShareLanding(sid) {
   startReveal({ result, sid, shareLanding: true });
 }
 
+async function bootSharedFromCache(sid) {
+  // Cold load of /r/:sid or ?sid= without __INITIAL_DATA__ — try the local
+  // cache so we can show the result instantly, no diagnostic re-run.
+  const cached = await getCachedResult(sid);
+  if (!cached?.payload) return false;
+  show(viewReveal);
+  startReveal({
+    result: cached.payload,
+    sid,
+    shareLanding: true,
+  });
+  return true;
+}
+
 function bootLive(sid) {
   show(viewWaiting);
   const shopName = getStashedShopName(sid);
+
+  // Bind the waiting-view email capture form — submissions are queued until
+  // the diagnostic completes (no link to share yet).
+  bindEmailForm({
+    form: document.getElementById("wait-email-form"),
+    input: document.getElementById("wait-email-input"),
+    submitBtn: document.getElementById("wait-email-submit"),
+    msg: document.getElementById("wait-email-msg"),
+    sid,
+    shopName,
+    mode: "queue",
+  });
 
   let pollHandle = null;
 
   function onDone(result, progress) {
     const distinct = sumDistinctSources(progress);
     rememberCompletedAssessment(sid, result);
+    // Cache the full result on the server so future shared loads are instant.
+    cacheResult(sid, result, { shopName: result?.shop?.name ?? shopName ?? undefined })
+      .then(() => dispatchResultEmail(sid, { shopName: result?.shop?.name ?? shopName ?? undefined }))
+      .catch(() => {});
     show(viewReveal);
     startReveal({ result, sid, distinctSources: distinct, shareLanding: false });
   }
@@ -86,7 +118,7 @@ function bootLive(sid) {
 }
 
 // Bootstrap.
-(function main() {
+(async function main() {
   const sid = getSidFromUrl() ?? extractSidFromShareLanding();
   if (window.__INITIAL_DATA__ && sid) {
     bootShareLanding(sid);
@@ -99,6 +131,13 @@ function bootLive(sid) {
       onRetry: () => { window.location.href = "/"; },
     });
     return;
+  }
+  // If this looks like a shared link (path /r/:sid), try the cached result
+  // first so the recipient lands directly in the reveal scenes with no wait.
+  const isShareLanding = /\/r\/[^/?#]+/.test(window.location.pathname);
+  if (isShareLanding) {
+    const ok = await bootSharedFromCache(sid);
+    if (ok) return;
   }
   bootLive(sid);
 })();

@@ -30,6 +30,16 @@
       <p id="progress-line" class="progress-line">A começar…</p>
       <p id="net-line" class="net-line" hidden>Sem rede — vou tentar de novo.</p>
 
+      <form id="wait-email-form" class="email-capture" novalidate>
+        <label class="email-capture-label" for="wait-email-input">Recebe o resultado por email quando ficar pronto.</label>
+        <div class="email-capture-row">
+          <input id="wait-email-input" class="email-capture-input" type="email" inputmode="email" autocomplete="email" placeholder="o-teu-email@exemplo.pt" required />
+          <button id="wait-email-submit" class="btn btn-secondary email-capture-submit" type="submit">Quero receber</button>
+        </div>
+        <p id="wait-email-msg" class="email-capture-msg" aria-live="polite"></p>
+        <p class="email-capture-foot">Só usamos para te enviar este resultado.</p>
+      </form>
+
       <footer class="ahi-footer">— AHI · Fórum do Comércio do Porto</footer>
     </section>
 

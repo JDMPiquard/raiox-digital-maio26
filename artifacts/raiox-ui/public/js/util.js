@@ -2,6 +2,20 @@
 
 export const API_BASE = "https://raiox-api.jd-ad0.workers.dev";
 
+// Base URL for the *result* persistence + email endpoints (Task #10). These
+// live on our own api-server (artifact `api-server`, mounted at `/api`),
+// not on the workers.dev diagnostic backend. Defaults to same-origin so it
+// works behind the Replit artifact router; override via window.RESULT_API_BASE
+// when raiox-ui is deployed to a different origin than the api-server.
+export const RESULT_API_BASE = (() => {
+  try {
+    if (typeof window !== "undefined" && typeof window.RESULT_API_BASE === "string") {
+      return window.RESULT_API_BASE.replace(/\/+$/, "");
+    }
+  } catch {}
+  return "";
+})();
+
 // Mock toggle: set ?mock=1 in URL or localStorage.raiox_mock = "1" to force mocks.
 // Without a flag we still fall back to mocks if /api/diagnostic returns 501.
 export function mockMode() {

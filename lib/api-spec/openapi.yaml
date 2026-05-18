@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: result
+    description: Assessment result operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,130 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /result/{sid}/cache:
+    get:
+      operationId: getCachedResult
+      tags: [result]
+      summary: Read a cached assessment result
+      description: |
+        Returns the most recently cached payload for `sid`, or 404 if nothing
+        has been cached for it. Used to render shared links (`/r/:sid`) and
+        WhatsApp-delivered results without re-running the diagnostic.
+      parameters:
+        - in: path
+          name: sid
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cached result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CachedResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: cacheResult
+      tags: [result]
+      summary: Cache an assessment result by sid
+      description: |
+        Upserts the full diagnostic payload for `sid` so it can be re-served
+        instantly when the result link is shared.
+      parameters:
+        - in: path
+          name: sid
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CacheResultRequest"
+      responses:
+        "200":
+          description: Cached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CacheResultStatus"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /result/{sid}/email:
+    post:
+      operationId: captureResultEmail
+      tags: [result]
+      summary: Capture an email for a result
+      description: |
+        Stores (upserts) the email to receive a Raio-X result link by `sid`.
+        If the assessment is already cached, the email is sent now via Resend
+        regardless of the `immediate` flag; otherwise it is queued and sent
+        when the diagnostic completes (via the cache or dispatch endpoint).
+        The `immediate` field is accepted for backwards compatibility but no
+        longer gates the send.
+      parameters:
+        - in: path
+          name: sid
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaptureResultEmailRequest"
+      responses:
+        "200":
+          description: Stored / sent / queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResultEmailStatus"
+        "400":
+          description: Invalid email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /result/{sid}/email/dispatch:
+    post:
+      operationId: dispatchResultEmail
+      tags: [result]
+      summary: Flush any queued result email for the given sid
+      description: |
+        Called when the diagnostic for `sid` has just completed. If an email
+        is on file and hasn't been sent yet, sends the Raio-X result link now.
+      parameters:
+        - in: path
+          name: sid
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DispatchResultEmailRequest"
+      responses:
+        "200":
+          description: Dispatched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResultEmailStatus"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +159,83 @@ components:
           type: string
       required:
         - status
-
+    CaptureResultEmailRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        immediate:
+          type: boolean
+          description: If true, send the email now instead of queuing.
+          default: false
+        shopName:
+          type: string
+          description: Optional shop name to personalise the email.
+      required:
+        - email
+    DispatchResultEmailRequest:
+      type: object
+      properties:
+        shopName:
+          type: string
+    ResultEmailStatus:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        sent:
+          type: boolean
+        queued:
+          type: boolean
+      required:
+        - ok
+    CacheResultRequest:
+      type: object
+      properties:
+        shopName:
+          type: string
+        payload:
+          description: Full diagnostic result payload.
+          type: object
+          additionalProperties: true
+      required:
+        - payload
+    CacheResultStatus:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
+    CachedResult:
+      type: object
+      properties:
+        sid:
+          type: string
+        shopName:
+          type: string
+          nullable: true
+        payload:
+          type: object
+          additionalProperties: true
+        cachedAt:
+          type: string
+          format: date-time
+        hasEmail:
+          type: boolean
+      required:
+        - sid
+        - payload
+        - cachedAt
+        - hasEmail
+    ErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        error:
+          type: string
+      required:
+        - ok
+        - error
