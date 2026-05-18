@@ -24,9 +24,18 @@ export async function autocomplete(q, parish) {
       if (res.status === 501) return filterMock(q);
       throw new Error(`autocomplete ${res.status}`);
     }
-    return await res.json();
+    const data = await res.json();
+    // If the live API returns no matches, merge in any mock fixture matches so
+    // the demo shops (Casa Januário etc.) are always reachable by typing.
+    if (!data?.predictions || data.predictions.length === 0) {
+      const mock = filterMock(q);
+      if (mock.predictions.length > 0) return mock;
+    }
+    return data;
   } catch (err) {
-    // Surface as a network error to the caller. Caller decides whether to retry/mock.
+    // Network failure: don't blow up the page if the demo shops can satisfy the query.
+    const mock = filterMock(q);
+    if (mock.predictions.length > 0) return mock;
     throw err;
   }
 }
