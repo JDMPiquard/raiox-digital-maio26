@@ -227,6 +227,7 @@ if (chipHost) {
     if (manualMode) exitManualMode();
     predictions = [p];
     selected = p;
+    selected.__demo = true; // route through mock on submit
     input.value = p.name;
     setExpanded(false);
     showConfirm(p);
@@ -252,10 +253,16 @@ form.addEventListener("submit", async (e) => {
   submit.textContent = "Sim, começar";
 
   try {
+    const isDemo = selected?.__demo === true;
+    // Demo chips short-circuit to mock so the experience always completes
+    // even when the live API isn't seeded with the fake place_id.
+    if (isDemo) {
+      try { window.localStorage.setItem("raiox_mock", "1"); } catch {}
+    }
     const { sid } = await startDiagnostic(body);
-    // Stash shop name so the result page can pin it before /api/status echoes anything.
     try { sessionStorage.setItem(`raiox:${sid}:shop`, body.shop_name); } catch {}
-    window.location.href = `/result.html?sid=${encodeURIComponent(sid)}`;
+    const qs = isDemo ? `&mock=1` : "";
+    window.location.href = `/result.html?sid=${encodeURIComponent(sid)}${qs}`;
   } catch {
     submit.disabled = false;
     submit.removeAttribute("aria-busy");

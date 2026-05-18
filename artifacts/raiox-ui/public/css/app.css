@@ -245,22 +245,26 @@
 
 .view { min-height: 100dvh; display: flex; flex-direction: column; }
 
-/* ---------- Phase 3 — WAITING (3×3 tile grid) ---------- */
+/* ---------- Phase 3 — WAITING (3×3 tile grid)
+   Locked to a single viewport. No scroll. ---------- */
 .view-waiting {
   max-width: var(--max-width);
   margin: 0 auto;
   width: 100%;
-  padding: var(--space-md);
+  padding: 12px var(--space-md) 16px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .result-top {
   display: flex; justify-content: space-between; align-items: baseline;
-  margin-bottom: var(--space-sm);
-  padding-top: 4px;
+  margin: 0;
 }
 .result-top .shop-pin {
   font-family: var(--font-serif);
-  font-size: 26px;
+  font-size: 22px;
   color: var(--text);
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -268,15 +272,17 @@
 .result-status {
   font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.6px;
   text-transform: uppercase; color: var(--muted);
-  margin: 0 0 var(--space-md);
+  margin: 0;
 }
 
-/* 3×3 tile grid — lights up as evidence arrives */
+/* 3×3 tile grid — capped width so it never dominates the fold */
 .tile-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: var(--space-sm) 0 var(--space-md);
+  gap: 6px;
+  margin: 8px auto;
+  width: 100%;
+  max-width: 280px;
 }
 .tile {
   aspect-ratio: 1 / 1;
@@ -296,8 +302,13 @@
 /* Featured "big number" bursts under the grid */
 .fact-stack {
   text-align: center;
-  margin: var(--space-md) 0;
-  min-height: 92px;
+  margin: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
 }
 .fact-card {
   opacity: 0;
@@ -308,24 +319,24 @@
 .fact-card.out { display: none; }
 .fact-number {
   font-family: var(--font-serif);
-  font-size: 56px;
+  font-size: 48px;
   color: var(--cobalt);
   line-height: 1;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
-.fact-number.is-string { font-size: 28px; letter-spacing: -0.02em; }
+.fact-number.is-string { font-size: 24px; letter-spacing: -0.02em; }
 .fact-label {
   color: var(--muted);
   margin-top: 6px;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 /* Terracotta progress bar */
 .progress-track {
   height: 2px; background: var(--rule); overflow: hidden;
-  margin-top: var(--space-sm);
+  margin-top: 4px;
 }
 .progress-bar {
   height: 100%;
@@ -336,15 +347,15 @@
 .progress-line {
   font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.4px;
   text-transform: uppercase; color: var(--muted);
-  margin: 8px 0 0; min-height: 1.5em;
+  margin: 6px 0 0; min-height: 1.4em;
 }
-.net-line { color: var(--muted); margin: var(--space-xs) 0 0; font-size: 14px; }
+.net-line { color: var(--muted); margin: 4px 0 0; font-size: 13px; }
 
 .ahi-footer {
   color: var(--muted);
   font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase;
-  margin-top: var(--space-lg);
-  padding-top: var(--space-md);
+  margin: 0;
+  padding-top: 10px;
   border-top: 1px solid var(--rule);
 }
 
@@ -389,23 +400,21 @@
 .scene-host {
   flex: 1;
   position: relative;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: 56px var(--space-md) 64px;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .scene {
   position: absolute;
   inset: 0;
-  padding: 56px var(--space-md) 64px;
+  padding: 44px var(--space-md) 52px;
   display: flex;
   flex-direction: column;
   opacity: 0;
   transform: translateY(12px);
   transition: opacity 420ms ease, transform 420ms ease;
   pointer-events: none;
+  overflow: hidden;
 }
 .scene.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
 .scene-inner {
@@ -415,7 +424,11 @@
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
+.scene-inner::-webkit-scrollbar { display: none; }
 
 /* Scene — Hero (with corner tile motif) */
 .scene--hero { justify-content: center; position: relative; }
