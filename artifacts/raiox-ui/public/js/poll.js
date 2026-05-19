@@ -5,6 +5,18 @@ import { getStatus } from "/js/api.js";
 import { pickFact, stagePercent, countUp, formatNumber, escapeHtml } from "/js/util.js";
 import { buildTileGrid } from "/js/tiles.js";
 
+// Ordered ceiling list so the bar can drift toward the *next* stage when the
+// backend goes quiet (synthesis sometimes takes 25s+ without a heartbeat).
+const STAGE_ORDER = [
+  "identifying", "scanning_google", "scanning_instagram",
+  "scanning_site", "scanning_web", "synthesizing", "done",
+];
+function nextStagePercent(stage) {
+  const i = STAGE_ORDER.indexOf(stage);
+  if (i < 0 || i >= STAGE_ORDER.length - 1) return stagePercent("done");
+  return stagePercent(STAGE_ORDER[i + 1]);
+}
+
 export function startPolling({ sid, shopName, onDone, onError, onExpired, onTimeout }) {
   const shopPin = document.getElementById("wait-shop-name");
   const statusEl = document.getElementById("result-status");
@@ -26,8 +38,36 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
   let timedOut = false;
   let stopped = false;
   let currentCard = null;
+  let lastProgressAt = Date.now();
+  let stalled = false;
+  let barPct = 6;
+  let barCeiling = stagePercent(STAGE_ORDER[0]);
+  let driftTimer = 0;
+  const STALL_AFTER_MS = 10_000;
+  const BASE_STATUS = "A descobrir-te peça a peça…";
+  const STALLED_STATUS = "Ainda a trabalhar — falta pouco…";
 
-  function setBar(pct) { bar.style.width = `${Math.max(6, Math.min(100, pct))}%`; }
+  function setBar(pct) {
+    barPct = Math.max(6, Math.min(100, pct));
+    bar.style.width = `${barPct}%`;
+  }
+
+  // While the backend is quiet, drift the bar slowly toward the next stage's
+  // percent so the UI never feels frozen. Caps at 60% of the gap so the bar
+  // can't reach the next milestone without real evidence.
+  function scheduleDrift() {
+    clearTimeout(driftTimer);
+    if (stopped) return;
+    const target = barPct + (barCeiling - barPct) * 0.6;
+    if (target <= barPct + 0.5) return;
+    driftTimer = setTimeout(function step() {
+      if (stopped) return;
+      if (barPct < target) {
+        setBar(Math.min(target, barPct + 0.4));
+        driftTimer = setTimeout(step, 700);
+      }
+    }, 1500);
+  }
 
   function showFeaturedFact(label, value) {
     // Replace the single featured card with a new one; tile grid is the cumulative view.
@@ -56,17 +96,30 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
   function paintProgress(progress) {
     if (!Array.isArray(progress)) return;
 
+    if (progress.length > renderedCount) {
+      lastProgressAt = Date.now();
+      if (stalled) {
+        stalled = false;
+        statusEl.textContent = BASE_STATUS;
+      }
+    }
+
     const last = progress[progress.length - 1];
     if (last?.text) line.textContent = last.text;
 
     for (let i = progress.length - 1; i >= 0; i--) {
-      if (progress[i].stage) { setBar(stagePercent(progress[i].stage)); break; }
+      if (progress[i].stage) {
+        setBar(stagePercent(progress[i].stage));
+        barCeiling = nextStagePercent(progress[i].stage);
+        scheduleDrift();
+        break;
+      }
     }
 
     grid.lightUp(progress.length);
 
-    if (progress.length > 0) {
-      statusEl.textContent = "A descobrir-te peça a peça…";
+    if (progress.length > 0 && !stalled) {
+      statusEl.textContent = BASE_STATUS;
     }
 
     for (let i = renderedCount; i < progress.length; i++) {
@@ -90,6 +143,12 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
       activity.stop();
       onTimeout?.();
     }
+    // Reassure the user when the backend is quiet for too long (synthesis
+    // can sit silent for 20-30s). Reset on the next real progress item.
+    if (!stalled && Date.now() - lastProgressAt > STALL_AFTER_MS) {
+      stalled = true;
+      statusEl.textContent = STALLED_STATUS;
+    }
     try {
       const status = await getStatus(sid);
       backoff = 0;
@@ -97,6 +156,7 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
       paintProgress(status.progress);
 
       if (status.state === "done") {
+        clearTimeout(driftTimer);
         setBar(100);
         grid.lightUp(9);
         statusEl.textContent = "Painel completo";
@@ -106,12 +166,14 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
         return;
       }
       if (status.state === "error") {
+        clearTimeout(driftTimer);
         stopped = true;
         activity.stop();
         onError?.(status.error);
         return;
       }
       if (status.state === "expired") {
+        clearTimeout(driftTimer);
         stopped = true;
         activity.stop();
         onExpired?.();
@@ -130,7 +192,7 @@ export function startPolling({ sid, shopName, onDone, onError, onExpired, onTime
   setTimeout(tick, 200);
 
   return {
-    stop() { stopped = true; activity.stop(); },
+    stop() { stopped = true; clearTimeout(driftTimer); activity.stop(); },
     pokeNow() {
       if (timedOut) {
         timedOut = false;
